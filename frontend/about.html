@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>세이프홈 - 문의하기</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- <div style="text-align:center; margin-bottom:24px;">
+        <a href="{{ url_for('mypage') }}" class="btn">마이페이지</a>
+        </div>  -->
+    <style>
+      body { background: #f7f8fa; }
+      .container { max-width: 440px; margin: 48px auto; padding: 0 16px; }
+      .contact-card {
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.09);
+        padding: 32px 28px 24px 28px;
+        margin-top: 24px;
+      }
+      h2 {
+        text-align: center;
+        font-size: 2rem;
+        margin-bottom: 12px;
+        color: #1976d2; /* 파란색 포인트 */
+        font-weight: 700;
+        letter-spacing: -1px;
+      }
+      .form-group { margin-bottom: 18px; }
+      label { display: block; margin-bottom: 7px; font-weight: 500; color: #444; }
+      input[type="text"], input[type="email"], textarea {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 1rem;
+        background: #fafbfc;
+        transition: border-color 0.2s, background 0.2s;
+        box-sizing: border-box;
+      }
+      input:focus, textarea:focus {
+        border-color: #1976d2; /* 파란색 포커스 */
+        outline: none;
+        background: #fff;
+      }
+      textarea { resize: vertical; min-height: 100px; font-family: inherit; }
+      .btn {
+        width: 100%;
+        background: linear-gradient(90deg, #1976d2 60%, #64b5f6 100%); /* 파란 그라데이션 */
+        color: #fff;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 0;
+        font-size: 1.08rem;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(25,118,210,0.10);
+        transition: background 0.2s, transform 0.06s;
+        margin-top: 8px;
+      }
+      .btn:hover {
+        background: linear-gradient(90deg, #1565c0 60%, #64b5f6 100%); /* 호버 시 더 진한 파랑 */
+      }
+      .flash-messages { margin-top: 18px; text-align: center; }
+      .alert {
+        background: #e3f2fd;          /* 연한 파랑 배경 */
+        color: #0d47a1;               /* 진한 파랑 텍스트 */
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 1rem;
+        box-shadow: 0 2px 8px rgba(25,118,210,0.06);
+        margin-top: 8px;
+        display: inline-block;
+      }
+      @media (max-width: 600px) {
+        .container { padding: 0 4px; }
+        .contact-card { padding: 18px 8px 16px 8px; }
+      }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+    <main class="container">                      
+        <div class="contact-card">
+            <h2>문의하기</h2>
+            <form id="contactForm">
+                <div class="form-group">
+                    <label for="name">이름</label>
+                    <input id="name" name="name" type="text" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">이메일</label>
+                    <input id="email" name="email" type="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="message">문의 내용</label>
+                    <textarea id="message" name="message" rows="5" required></textarea>
+                </div>
+                <button type="submit" class="btn">문의 보내기</button>
+            </form>
+            <section id="flash" class="flash-messages" aria-live="polite"></section>
+        </div>
+    </main>
+    <script>
+    document.getElementById('contactForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        document.getElementById('flash').innerHTML =
+        '<div class="alert">문의가 정상적으로 접수되었습니다.<br>빠른 시일 내에 답변드리겠습니다.</div>';
+        this.reset();
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>세이프홈 - 마이페이지</title>
+    <link rel="stylesheet" href="../static/style.css">
+</head>
+<body>
+    <header>
+        <a href="{{ url_for('home') }}" class="logo">🏠 세이프홈</a>
+        <nav>
+            <a href="{{ url_for('logout') }}">로그아웃</a>
+        </nav>
+    </header>
+    <main>
+        <h1>마이페이지</h1>
+        <h2>{{ username }}님, 환영합니다!</h2>
+        <p>이곳에서 관심 지역 알림 설정, 분석 이력 등을 관리할 수 있습니다.</p>
+    </main>
+</body>
+</html>

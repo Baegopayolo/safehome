@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>세이프홈 - 회원가입</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% include '_navbar.html' %}
+    <main class="container">
+        <h2>회원가입</h2>
+        <form id="registerForm" method="POST" action="/api/register" novalidate>
+            <div class="form-group">
+                <label for="username">아이디</label>
+                <input id="username" name="username" type="text" required minlength="3" autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="email">이메일</label>
+                <input id="email" name="email" type="email" required autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input id="password" name="password" type="password" required minlength="6" autocomplete="new-password">
+            </div>
+
+            <div class="form-group">
+                <label for="password2">비밀번호 확인</label>
+                <input id="password2" name="password2" type="password" required minlength="6" autocomplete="new-password">
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox">
+                    <input id="agree" name="agree" type="checkbox" required> 이용약관 및 개인정보처리방침에 동의합니다
+                </label>
+            </div>
+
+            <button type="submit" class="btn">가입하기</button>
+        </form>
+
+        <section id="flash" class="flash-messages" aria-live="polite"></section>
+    </main>
+
+    <script>
+    // 쿼리 ?msg=로 전달된 메시지 표시 (정적 미리보기용)
+    (function showQueryMsg(){
+      const params = new URLSearchParams(location.search);
+      const msg = params.get('msg');
+      if(msg){
+        document.getElementById('flash').innerHTML = '<div class="alert">'+ decodeURIComponent(msg) +'</div>';
+      }
+    })();
+
+    // 클라이언트 유효성 검사: 비밀번호 일치 및 기본 길이 검사
+    document.getElementById('registerForm').addEventListener('submit', function(e){
+      const flash = document.getElementById('flash');
+      flash.innerHTML = '';
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const pw = document.getElementById('password').value;
+      const pw2 = document.getElementById('password2').value;
+      const agree = document.getElementById('agree').checked;
+      const errors = [];
+
+      if(username.length < 3) errors.push('아이디는 최소 3자 이상입니다.');
+      if(!/^\S+@\S+\.\S+$/.test(email)) errors.push('유효한 이메일을 입력하세요.');
+      if(pw.length < 6) errors.push('비밀번호는 최소 6자 이상입니다.');
+      if(pw !== pw2) errors.push('비밀번호가 일치하지 않습니다.');
+      if(!agree) errors.push('이용약관에 동의해야 합니다.');
+
+      if(errors.length){
+        e.preventDefault();
+        flash.innerHTML = '<div class="alert">' + errors.map(x => '<div>'+x+'</div>').join('') + '</div>';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return false;
+      }
+
+      // Flask 라우트로 리디렉션 (url_for 사용)
+      e.preventDefault();
+      flash.innerHTML = '<div class="alert">가입이 완료되었습니다. 로그인 페이지로 이동합니다...</div>';
+      setTimeout(() => { 
+        window.location.href = "{{ url_for('login') }}?msg=" + encodeURIComponent('가입이 완료되었습니다. 로그인해주세요.'); 
+      }, 1400);
+    });
+    </script>
+</body>
+</html>

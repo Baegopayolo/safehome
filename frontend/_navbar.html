@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>세이프홈</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="site-header">
+    <a href="/" class="logo" style="display:flex; align-items:center; gap:8px; text-decoration:none;">
+        <img src="{{ url_for('static', filename='logo.svg') }}" alt="세이프홈 로고" style="width:40px; height:40px;">
+        <span style="font-size:1.5rem; font-weight:700; color:#1565c0;">세이프홈</span>
+    </a>
+    <nav class="nav">
+        <a href="/">홈</a>
+        <a href="/map">위험 지도</a>
+        <a href="/searchscan">매물분석</a>
+        <a href="/scam-types">전세사기 유형</a>
+        <a href="/self-check">자가진단</a>
+        <a href="/about">안내</a>
+        {% if current_user.is_authenticated %}
+            <a href="/mypage">마이페이지</a>
+            <a href="/logout">로그아웃</a>
+        {% else %}
+            <a href="/login">로그인</a>
+            <a href="/register">회원가입</a>
+        {% endif %}
+    </nav>
+</header>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 방패 배경 -->
+  <path d="M100 20 L160 50 L160 120 Q160 160 100 180 Q40 160 40 120 L40 50 Z" 
+        fill="#1565c0" opacity="0.1"/>
+  
+  <!-- 집 아이콘 -->
+  <path d="M100 60 L140 85 L140 130 L60 130 L60 85 Z" 
+        fill="#1565c0"/>
+  
+  <!-- 지붕 -->
+  <path d="M100 50 L150 80 L140 85 L100 60 L60 85 L50 80 Z" 
+        fill="#1565c0"/>
+  
+  <!-- 문 -->
+  <rect x="90" y="105" width="20" height="25" fill="#ffffff" rx="2"/>
+  
+  <!-- 방패 테두리 -->
+  <path d="M100 20 L160 50 L160 120 Q160 160 100 180 Q40 160 40 120 L40 50 Z" 
+        fill="none" stroke="#1565c0" stroke-width="3"/>
+  
+  <!-- 체크마크 (안전 표시) -->
+  <polyline points="70,95 85,110 115,75" 
+            fill="none" stroke="#1565c0" stroke-width="4" 
+            stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

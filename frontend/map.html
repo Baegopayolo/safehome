@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>세이프홈 - 안전 히트맵</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        body { margin: 0; font-family: sans-serif; }
+        #main-container { margin: 0; position: relative; }
+        
+        #map { width: 100%; height: 100vh; }
+
+        /* 검색창 - 네비바 바로 아래 고정 */
+        #search-container {
+            position: fixed;
+            top: 70px; /* 네비바 높이만큼 아래로 */
+            left: 50%;
+            transform: translateX(-50%); /* 중앙 정렬 */
+            z-index: 1000;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #address-search {
+            width: 320px;
+            height: 38px;
+            font-size: 15px;
+            padding: 0 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        #address-search:focus {
+            border-color: var(--brand-600);
+            outline: none;
+        }
+
+        #search-container button {
+            height: 38px;
+            font-size: 15px;
+            padding: 0 16px;
+            border: none;
+            background: var(--brand-600);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+        #search-container button:hover {
+            background: var(--brand-700);
+        }
+
+        #clear-btn {
+            background: #666 !important;
+            padding: 0 12px !important;
+        }
+        #clear-btn:hover {
+            background: #444 !important;
+        }
+
+        .map-title {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.95);
+            padding: 10px 18px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 14px;
+            color: #555;
+            z-index: 500;
+        }
+        
+        .infowindow-content { padding: 10px; font-size: 14px; }
+        .infowindow-content a {
+            color: var(--brand-600);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .infowindow-content a:hover {
+            text-decoration: underline;
+        }
+
+        /* 사이드 패널 */
+#side-panel {
+    position: fixed;
+    left: 0;
+    top: 70px;
+    width: 320px;
+    height: calc(100vh - 70px);
+    background: white;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    z-index: 999;
+    overflow-y: auto;
+    transition: transform 0.3s;
+}
+
+#side-panel.hidden {
+    transform: translateX(-100%);
+}
+
+.panel-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+}
+
+.panel-toggle {
+    position: fixed;
+    left: 320px;
+    top: 100px;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ddd;
+    border-left: none;
+    padding: 12px 8px;
+    cursor: pointer;
+    border-radius: 0 6px 6px 0;
+    transition: left 0.3s;
+}
+
+#side-panel.hidden + .panel-toggle {
+    left: 0;
+}
+
+/* 필터 섹션 */
+.filter-section {
+    padding: 15px 20px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.filter-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #333;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.filter-btn.active {
+    background: var(--brand-600);
+    color: white;
+    border-color: var(--brand-600);
+}
+
+/* 지역 리스트 */
+.region-list {
+    padding: 10px;
+}
+
+.region-item {
+    padding: 12px 15px;
+    margin: 5px 0;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.region-item:hover {
+    background: #e9ecef;
+    transform: translateX(4px);
+}
+
+.region-item.danger {
+    border-left-color: #dc3545;
+}
+
+.region-item.warning {
+    border-left-color: #ffc107;
+}
+
+.region-item.safe {
+    border-left-color: #28a745;
+}
+
+.region-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.region-score {
+    font-size: 13px;
+    color: #666;
+}
+
+/* 통계 카드 */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 15px 20px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 12px 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.stat-number {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: #666;
+}
+
+.stat-card.danger .stat-number { color: #dc3545; }
+.stat-card.warning .stat-number { color: #ffc107; }
+.stat-card.safe .stat-number { color: #28a745; }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+    <div id="main-container">
+    
+    <!-- 사이드 패널을 여기로 이동 -->
+    <div id="side-panel">
+        <div class="panel-header">
+            <h2 style="margin: 0 0 8px 0; font-size: 18px;">지역별 위험도</h2>
+            <p style="margin: 0; font-size: 13px; color: #666;">총 <span id="total-regions">0</span>개 지역</p>
+        </div>
+
+        <!-- 통계 섹션 -->
+        <div class="stats-container">
+            <div class="stat-card danger">
+                <div class="stat-number" id="danger-count">0</div>
+                <div class="stat-label">위험</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-number" id="warning-count">0</div>
+                <div class="stat-label">주의</div>
+            </div>
+            <div class="stat-card safe">
+                <div class="stat-number" id="safe-count">0</div>
+                <div class="stat-label">안전</div>
+            </div>
+        </div>
+
+        <!-- 필터 섹션 -->
+        <div class="filter-section">
+            <h3>필터</h3>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">전체</button>
+                <button class="filter-btn" data-filter="danger">위험</button>
+                <button class="filter-btn" data-filter="warning">주의</button>
+                <button class="filter-btn" data-filter="safe">안전</button>
+            </div>
+        </div>
+
+        <!-- 지역 목록 -->
+        <div class="region-list" id="region-list"></div>
+    </div>
+
+    <button class="panel-toggle" id="panel-toggle">◀</button>
+    
+    <div id="search-container">
+        <input type="text" id="address-search" placeholder="분석하고 싶은 주소를 입력하세요 (예: 신림동)">
+        <button id="search-btn" type="button">검색</button>
+        <button id="clear-btn" style="margin-left:6px; background: #222222;">&#10006;</button>
+    </div>
+    <div id="map"></div>
+    <div class="map-title">지도 위에 지역별 전세사기 위험도가 표시됩니다.</div>
+    </div>
+
+    <script>
+    let map;
+    const regionData = {};
+    const scannerBaseUrl = "{{ url_for('scanner_page') }}";
+    let currentFilter = 'all';
+    let regions = [];
+
+    // 주소 검색 함수 (개선)
+    function searchAddress() {
+        const searchKeyword = document.getElementById('address-search').value.trim();
+        if (!searchKeyword) {
+            alert("동 이름을 입력해주세요.");
+            return;
+        }
+        
+        // 정확히 일치하는 지역 찾기
+        let targetRegion = regionData[searchKeyword];
+        
+        // 정확히 일치하지 않으면 부분 일치 검색
+        if (!targetRegion) {
+            const matchedKey = Object.keys(regionData).find(key => 
+                key.includes(searchKeyword) || searchKeyword.includes(key)
+            );
+            if (matchedKey) {
+                targetRegion = regionData[matchedKey];
+                console.log(`'${searchKeyword}' -> '${matchedKey}'로 검색됨`);
+            }
+        }
+        
+        if (targetRegion) {
+            // 모든 정보창 닫기
+            Object.values(regionData).forEach(d => d.infowindow.close());
+            
+            // 해당 지역으로 이동
+            const position = targetRegion.circle.getPosition();
+            map.setCenter(position);
+            map.setLevel(5);
+            
+            // 정보창 열기
+            targetRegion.infowindow.setPosition(position);
+            targetRegion.infowindow.open(map);
+            
+            console.log(`지도 이동: ${position.getLat()}, ${position.getLng()}`);
+        } else {
+            alert(`'${searchKeyword}' 지역을 찾을 수 없습니다.\n사용 가능한 지역: ${Object.keys(regionData).join(', ')}`);
+        }
+    }
+
+    // 지도 초기화
+    function initMap() {
+        const mapContainer = document.getElementById('map');
+        const mapOption = {
+            center: new kakao.maps.LatLng(37.566826, 126.9786567),
+            level: 9
+        };
+        map = new kakao.maps.Map(mapContainer, mapOption);
+
+        // 백엔드 API에서 히트맵 데이터 가져오기
+        fetch('http://127.0.0.1:5000/heatmap')
+            .then(response => response.json())
+            .then(data => {
+                regions = data.map(region => ({
+                    ...region,
+                    category: region.score >= 80 ? 'danger' : region.score >= 50 ? 'warning' : 'safe'
+                }));
+                
+                console.log('로드된 지역:', regions.map(r => r.region));
+                
+                updateStats();
+                updateRegionList();
+                
+                // 지도에 원 그리기
+                data.forEach(region => {
+                    let color = '#28a745'; // 안전 (초록)
+                    if (region.score >= 80) color = '#dc3545'; // 위험 (빨강)
+                    else if (region.score >= 50) color = '#ffc107'; // 주의 (노랑)
+
+                    const circle = new kakao.maps.Circle({
+                        center: new kakao.maps.LatLng(region.lat, region.lng),
+                        radius: 900,
+                        fillColor: color,
+                        fillOpacity: 0.6,
+                        strokeWeight: 0
+                    });
+                    circle.setMap(map);
+                    
+                    const scannerUrl = `${scannerBaseUrl}?region=${encodeURIComponent(region.region)}`;
+                    const content = `
+                        <div class="infowindow-content">
+                            <strong>${region.region}</strong><br>
+                            위험도 점수: ${region.score}<br>
+                            <a href="${scannerUrl}">이 지역 매물 분석하기</a>
+                        </div>`;
+                    
+                    const infowindow = new kakao.maps.InfoWindow({ content: content, removable: true });
+
+                    regionData[region.region] = {
+                        circle: circle,
+                        infowindow: infowindow,
+                        category: region.score >= 80 ? 'danger' : region.score >= 50 ? 'warning' : 'safe',
+                        data: region
+                    };
+                    
+                    // 원 클릭 시 정보창 표시
+                    kakao.maps.event.addListener(circle, 'click', function() {
+                        Object.values(regionData).forEach(data => data.infowindow.close());
+                        infowindow.setPosition(circle.getPosition());
+                        infowindow.open(map);
+                    });
+                });
+                
+                console.log('검색 가능한 지역:', Object.keys(regionData));
+            })
+            .catch(error => console.error("Error fetching heatmap data:", error));
+    }
+
+    // 지도의 원 필터링
+    function filterMapCircles() {
+        Object.values(regionData).forEach(data => {
+            if (currentFilter === 'all' || data.category === currentFilter) {
+                data.circle.setMap(map);
+            } else {
+                data.circle.setMap(null);
+                data.infowindow.close();
+            }
+        });
+    }
+
+    // 지역 목록 업데이트
+    function updateRegionList() {
+        const listContainer = document.getElementById('region-list');
+        if (!listContainer) return;
+        
+        listContainer.innerHTML = '';
+        
+        const filtered = currentFilter === 'all' 
+            ? regions 
+            : regions.filter(r => r.category === currentFilter);
+        
+        filtered.sort((a, b) => b.score - a.score);
+        
+        filtered.forEach(region => {
+            const item = document.createElement('div');
+            item.className = `region-item ${region.category}`;
+            item.innerHTML = `
+                <div class="region-name">${region.region}</div>
+                <div class="region-score">위험도: ${region.score}점</div>
+            `;
+            item.onclick = () => {
+                const targetRegion = regionData[region.region];
+                if (targetRegion) {
+                    // 모든 정보창 닫기
+                    Object.values(regionData).forEach(d => d.infowindow.close());
+                    
+                    // 해당 지역으로 이동
+                    const position = targetRegion.circle.getPosition();
+                    map.setCenter(position);
+                    map.setLevel(5);
+                    
+                    // 정보창 열기
+                    targetRegion.infowindow.setPosition(position);
+                    targetRegion.infowindow.open(map);
+                    
+                    console.log(`지역 클릭: ${region.region} (${position.getLat()}, ${position.getLng()})`);
+                }
+            };
+            listContainer.appendChild(item);
+        });
+
+        const totalRegionsElement = document.getElementById('total-regions');
+        if (totalRegionsElement) {
+            totalRegionsElement.textContent = filtered.length;
+        }
+    }
+
+    // 통계 업데이트
+    function updateStats() {
+        const danger = regions.filter(r => r.score >= 80).length;
+        const warning = regions.filter(r => r.score >= 50 && r.score < 80).length;
+        const safe = regions.filter(r => r.score < 50).length;
+        
+        const dangerEl = document.getElementById('danger-count');
+        const warningEl = document.getElementById('warning-count');
+        const safeEl = document.getElementById('safe-count');
+        const totalEl = document.getElementById('total-regions');
+        
+        if (dangerEl) dangerEl.textContent = danger;
+        if (warningEl) warningEl.textContent = warning;
+        if (safeEl) safeEl.textContent = safe;
+        if (totalEl) totalEl.textContent = regions.length;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // 초기화 버튼
+        const clearBtn = document.getElementById('clear-btn');
+        if (clearBtn) {
+            clearBtn.onclick = function() {
+                document.getElementById('address-search').value = '';
+                Object.values(regionData).forEach(data => data.infowindow.close());
+                map.setCenter(new kakao.maps.LatLng(37.566826, 126.9786567));
+                map.setLevel(9);
+            };
+        }
+
+        // 사이드 패널 토글
+        const panelToggle = document.getElementById('panel-toggle');
+        if (panelToggle) {
+            panelToggle.addEventListener('click', function() {
+                const panel = document.getElementById('side-panel');
+                panel.classList.toggle('hidden');
+                this.textContent = panel.classList.contains('hidden') ? '▶' : '◀';
+            });
+        }
+
+        // 필터 버튼 클릭
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                updateRegionList();
+                filterMapCircles();
+            });
+        });
+
+        // 검색 버튼 클릭
+        const searchBtn = document.getElementById('search-btn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', searchAddress);
+        }
+
+        // Enter 키 검색
+        const searchInput = document.getElementById('address-search');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchAddress();
+                }
+            });
+        }
+    });
+</script>
+
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=8247295f2354056a3b44ceb99ae6d086&libraries=services"></script>
+<script>
+    window.onload = initMap;
+</script>
+</body>
+</html>

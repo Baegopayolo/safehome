@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>세이프홈 - 지역 매물 분석 검색</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% include '_navbar.html' %}
+    <main>
+        <h2 style="text-align: center; margin-top: 20px;">지역 매물 분석 검색</h2>
+        <hr style="margin-bottom: 20px;">
+
+        <div id="search-bar">
+            <span class="search-input-wrap">
+                <input type="text" id="region-input" placeholder="분석할 동 이름(예: 화곡동)을 입력하세요">
+                <button type="button" class="clear-btn-in" id="clear-btn-in" title="지우기">&#10006;</button>
+            </span>
+            <button id="search-btn" class="btn btn-search" onclick="searchRegion()">검색</button>
+        </div>
+        <div id="search-result"></div>
+    </main>
+    <script>
+function searchRegion() {
+    const region = document.getElementById('region-input').value.trim();
+    const resultDiv = document.getElementById('search-result');
+    if (!region) {
+        resultDiv.innerHTML = '<p style="color:#d9534f">지역명을 입력하세요.</p>';
+        return;
+    }
+
+    // 로딩 상태
+    resultDiv.innerHTML = `
+        <div class="loading">
+            <span class="spinner"></span>
+            <span>분석 중입니다...</span>
+        </div>
+    `;
+
+    fetch(`http://127.0.0.1:5000/analyze?region=${encodeURIComponent(region)}`)
+        .then(res => res.json())
+        .then(data => {
+            const props = Array.isArray(data.properties) ? data.properties : [];
+            if (props.length === 0) {
+                resultDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-emoji">🔍</div>
+                        <p>해당 지역의 매물 데이터가 없습니다.</p>
+                        <small>지역명을 다시 확인하거나 다른 키워드로 검색해 보세요.</small>
+                    </div>
+                `;
+                return;
+            }
+            renderResults(region, props, resultDiv);
+        })
+        .catch(() => {
+            resultDiv.innerHTML = `<p style='color:#d9534f'>서버 오류 또는 네트워크 오류가 발생했습니다.</p>`;
+        });
+}
+
+function renderResults(region, props, container) {
+    let properties = [...props];
+
+    const headerHTML = (count) => `
+        <div class="result-head">
+            <h2>"${region}" 매물 분석 결과 <span class="badge badge-neutral" id="result-count">${count}</span></h2>
+            <div class="controls">
+                <label for="sort-select">정렬</label>
+                <select id="sort-select" class="ctrl">
+                    <option value="default">기본순</option>
+                    <option value="warnDesc">위험요소 많음순</option>
+                    <option value="warnAsc">위험요소 적음순</option>
+                </select>
+                <label for="filter-input">필터</label>
+                <input id="filter-input" class="ctrl" placeholder="경고 키워드 또는 매물명">
+                <button id="expand-all" class="link-btn">전체 펼치기</button>
+                <button id="collapse-all" class="link-btn">전체 접기</button>
+            </div>
+        </div>
+    `;
+
+    const buildCards = (list) => list.map((prop, idx) => {
+        const name = prop.name || `매물 #${idx+1}`;
+        const warns = Array.isArray(prop.warnings) ? prop.warnings : [];
+        const checklist = Array.isArray(prop.checklist) ? prop.checklist : [];
+        const warnCount = warns.length;
+
+        const risk =
+            warnCount >= 5 ? 'high' :
+            warnCount >= 2 ? 'med' : 'low';
+
+        const warnItems = warns.length
+            ? warns.map(w => `<li>⚠️ ${w}</li>`).join('')
+            : `<li>✅ 특이사항 없음</li>`;
+
+        const checklistItems = checklist.length
+            ? checklist.map(c => `<li>☑ ${c}</li>`).join('')
+            : `<li>체크리스트 항목이 없습니다.</li>`;
+
+        return `
+            <div class="property-item" data-warnings="${warns.join(' ').toLowerCase()}" data-name="${(name||'').toLowerCase()}">
+                <div class="card-head">
+                    <h3>${name}</h3>
+                    <span class="badge ${risk === 'high' ? 'badge-danger' : risk === 'med' ? 'badge-warn' : 'badge-success'}">
+                        경고 ${warnCount}
+                    </span>
+                </div>
+                <div class="warnings">
+                    <ul class="warn-list">${warnItems}</ul>
+                </div>
+                <h4 class="check-toggle">[안전 계약 체크리스트] ▾</h4>
+                <ul class="checklist collapsed">
+                    ${checklistItems}
+                </ul>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        ${headerHTML(properties.length)}
+        <div class="property-list">
+            ${buildCards(properties)}
+        </div>
+    `;
+
+    const applyFilterAndSort = () => {
+        const sortVal = document.getElementById('sort-select').value;
+        const q = document.getElementById('filter-input').value.trim().toLowerCase();
+
+        let list = [...properties];
+
+        // 정렬
+        if (sortVal === 'warnDesc') {
+            list.sort((a, b) => (b.warnings?.length || 0) - (a.warnings?.length || 0));
+        } else if (sortVal === 'warnAsc') {
+            list.sort((a, b) => (a.warnings?.length || 0) - (b.warnings?.length || 0));
+        }
+
+        // 필터
+        if (q) {
+            list = list.filter(p =>
+                (p.warnings || []).join(' ').toLowerCase().includes(q) ||
+                (p.name || '').toLowerCase().includes(q)
+            );
+        }
+
+        document.querySelector('.property-list').innerHTML = buildCards(list);
+        attachCardHandlers();
+        document.getElementById('result-count').textContent = list.length;
+    };
+
+    const attachCardHandlers = () => {
+        document.querySelectorAll('.check-toggle').forEach(h => {
+            h.addEventListener('click', () => {
+                let next = h.nextElementSibling;
+                if (!next || !next.classList || !next.classList.contains('checklist')) {
+                    const container = h.closest('.property-item');
+                    next = container ? container.querySelector('.checklist') : null;
+                }
+                if (!next) return;
+                next.classList.toggle('collapsed');
+                h.textContent = next.classList.contains('collapsed') ? '[안전 계약 체크리스트] ▾' : '[안전 계약 체크리스트] ▴';
+            });
+        });
+    };
+
+    // 초기 핸들러
+    attachCardHandlers();
+
+    // 컨트롤 이벤트
+    document.getElementById('sort-select').addEventListener('change', applyFilterAndSort);
+    document.getElementById('filter-input').addEventListener('input', applyFilterAndSort);
+
+    document.getElementById('expand-all').addEventListener('click', () => {
+        document.querySelectorAll('.property-item').forEach(item => {
+            const list = item.querySelector('.checklist');
+            const toggle = item.querySelector('.check-toggle');
+            if (list && list.classList.contains('collapsed')) {
+                list.classList.remove('collapsed');
+                if (toggle) toggle.textContent = '[안전 계약 체크리스트] ▴';
+            }
+        });
+    });
+    document.getElementById('collapse-all').addEventListener('click', () => {
+        document.querySelectorAll('.property-item').forEach(item => {
+            const list = item.querySelector('.checklist');
+            const toggle = item.querySelector('.check-toggle');
+            if (list && !list.classList.contains('collapsed')) {
+                list.classList.add('collapsed');
+                if (toggle) toggle.textContent = '[안전 계약 체크리스트] ▾';
+            }
+        });
+    });
+}
+
+// x버튼 클릭 시 input 초기화
+document.getElementById('clear-btn-in').onclick = function() {
+    const input = document.getElementById('region-input');
+    input.value = '';
+    input.focus();
+};
+// 엔터키로도 검색 가능
+document.getElementById('region-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') searchRegion();
+});
+</script>
+</body>
+</html>

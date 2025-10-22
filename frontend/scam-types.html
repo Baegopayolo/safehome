@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>세이프홈 - 전세사기 유형</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% include '_navbar.html' %}
+
+  <!-- 히어로 -->
+  <section class="hero-banner">
+    <div class="hero-inner">
+      <h1>전세사기, 미리 알면 막을 수 있습니다</h1>
+      <p>대표 유형과 예방법을 한눈에. 계약 전 필수 점검 목록까지 확인하세요.</p>
+      <div class="hero-actions">
+        <a class="btn" href="{{ url_for('self_check_page') }}">자가진단 체크리스트</a>
+        <a class="btn btn-outline" href="{{ url_for('faq_page') }}">자주 묻는 질문</a>
+      </div>
+    </div>
+  </section>
+
+  <main class="page-wrap container-wide">
+    <!-- 좌측 목차 -->
+    <aside class="toc">
+      <nav>
+        <div class="toc-title">목차</div>
+        <a href="#types" class="toc-link">사기 유형</a>
+        <a href="#docs" class="toc-link">계약 전 필수 서류</a>
+        <a href="#tips" class="toc-link">예방 팁</a>
+      </nav>
+    </aside>
+
+    <!-- 본문 -->
+    <section class="content">
+      <section id="types">
+        <h2>대표적인 전세사기 유형</h2>
+        <div class="card-grid">
+          <!-- 깡통전세 -->
+          <article class="card">
+            <header class="card-header">
+              <div class="icon">🏚️</div>
+              <div>
+                <h3>깡통전세</h3>
+                <div class="meta">
+                  <span class="badge danger">고위험</span>
+                  <span class="badge outline">전세가율</span>
+                </div>
+              </div>
+            </header>
+            <div class="card-body">
+              매매가와 전세가가 비슷해 집값 하락·경매 시 보증금 회수가 어려운 유형.
+            </div>
+            <ul class="checklist">
+              <li>전세가율 70% 이하 권장</li>
+              <li>실거래가·시세 반드시 비교</li>
+              <li>담보권(근저당) 총액 확인</li>
+            </ul>
+            <button class="btn btn-outline accordion-toggle">사례/예방 체크리스트 열기</button>
+            <div class="accordion-content">
+              <p><strong>사례:</strong> 매매 3.2억, 전세 3.0억 → 집값 하락 시 보증금 미회수 위험.</p>
+              <p><strong>예방:</strong> HUG 전세보증보험 가입 가능 여부 확인, 보증금 분할지급 금지.</p>
+            </div>
+          </article>
+
+          <!-- 신탁사기 -->
+          <article class="card">
+            <header class="card-header">
+              <div class="icon">🏦</div>
+              <div>
+                <h3>신탁사기</h3>
+                <div class="meta">
+                  <span class="badge warn">주의</span>
+                  <span class="badge outline">신탁원부</span>
+                </div>
+              </div>
+            </header>
+            <div class="card-body">
+              신탁회사 동의 없이 임대계약을 체결해 무효가 되는 유형.
+            </div>
+            <ul class="checklist">
+              <li>등기부 '을구'에 신탁 여부 확인</li>
+              <li>신탁원부 발급 및 임대 동의서 확인</li>
+              <li>임대인과 신탁사 간 위임관계 서류 확보</li>
+            </ul>
+            <button class="btn btn-outline accordion-toggle">사례/예방 체크리스트 열기</button>
+            <div class="accordion-content">
+              <p><strong>사례:</strong> 신탁 부동산임에도 집주인이 단독으로 계약 체결.</p>
+              <p><strong>예방:</strong> 신탁사 확인 전화, 임대동의서 원본 확인 후 계약.</p>
+            </div>
+          </article>
+
+          <!-- 이중계약 -->
+          <article class="card">
+            <header class="card-header">
+              <div class="icon">📄</div>
+              <div>
+                <h3>이중계약</h3>
+                <div class="meta">
+                  <span class="badge danger">고위험</span>
+                  <span class="badge outline">신원확인</span>
+                </div>
+              </div>
+            </header>
+            <div class="card-body">
+              임차인이 집주인 행세를 하거나, 동일 주택에 중복 임대하는 유형.
+            </div>
+            <ul class="checklist">
+              <li>소유자 신분증·인감증명서 대조</li>
+              <li>대리계약 시 위임장·인감증명서 확인</li>
+              <li>계약금 계좌가 소유자 명의인지 확인</li>
+            </ul>
+            <button class="btn btn-outline accordion-toggle">사례/예방 체크리스트 열기</button>
+            <div class="accordion-content">
+              <p><strong>사례:</strong> 세입자 A가 집주인 행세로 B에게 전세 계약 후 잠적.</p>
+              <p><strong>예방:</strong> 등기부 소유자 계좌로 송금, 현장 입회·영상기록 보관.</p>
+            </div>
+          </article>
+
+          <!-- 무등록 중개 -->
+          <article class="card">
+            <header class="card-header">
+              <div class="icon">🚫</div>
+              <div>
+                <h3>무등록 중개</h3>
+                <div class="meta">
+                  <span class="badge warn">주의</span>
+                  <span class="badge info">자격확인</span>
+                </div>
+              </div>
+            </header>
+            <div class="card-body">
+              중개업 등록 없이 불법으로 중개하여 계약서 위조·허위 정보를 제공하는 유형.
+            </div>
+            <ul class="checklist">
+              <li>중개사무소 등록증 확인</li>
+              <li>공인중개사 자격증 원본 대조</li>
+              <li>계약서에 중개업소 도장·서명 필수</li>
+            </ul>
+            <button class="btn btn-outline accordion-toggle">사례/예방 체크리스트 열기</button>
+            <div class="accordion-content">
+              <p><strong>사례:</strong> 미등록 브로커가 가짜 등기부로 계약 유도 후 사라짐.</p>
+              <p><strong>예방:</strong> 지자체 홈페이지에서 중개업소 등록 여부 확인, 계약서 사본 보관.</p>
+            </div>
+          </article>
+
+          <!-- 빌라왕 사기 -->
+          <article class="card">
+            <header class="card-header">
+              <div class="icon">🏢</div>
+              <div>
+                <h3>빌라왕 사기</h3>
+                <div class="meta">
+                  <span class="badge danger">고위험</span>
+                  <span class="badge success">다세대</span>
+                </div>
+              </div>
+            </header>
+            <div class="card-body">
+              대출로 다세대 주택을 매입 후 고액 전세를 받아 빚만 남기고 파산하는 유형.
+            </div>
+            <ul class="checklist">
+              <li>건물 전체 임대 현황·선순위 확인</li>
+              <li>소유자의 다른 부동산 등기 조회</li>
+              <li>담보 대출 총액이 건물 시세 대비 과다한지 확인</li>
+            </ul>
+            <button class="btn btn-outline accordion-toggle">사례/예방 체크리스트 열기</button>
+            <div class="accordion-content">
+              <p><strong>사례:</strong> 빌라 여러 채를 대출로 매입 → 전세 받고 파산 신청 → 세입자 보증금 손실.</p>
+              <p><strong>예방:</strong> 선순위 확정일자 순위 확인, HUG 보증 가입 여부 점검.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="docs">
+        <h2>계약 전 필수 서류 확인법</h2>
+        <div class="callout">
+          <h4>등기부등본</h4>
+          <p><strong>갑구:</strong> 소유자 일치 여부, 가압류·가처분</p>
+          <p><strong>을구:</strong> 근저당·전세권 등 담보권 총액</p>
+          <a class="link" href="https://www.iros.go.kr" target="_blank" rel="noopener">인터넷 등기소 바로가기</a>
+        </div>
+        <div class="callout">
+          <h4>건축물대장</h4>
+          <p>용도·위반건축물 여부 확인, 불법 증축 시 보증보험 제한 가능.</p>
+        </div>
+      </section>
+
+      <section id="tips">
+        <h2>추가 예방 팁</h2>
+        <ul class="tips">
+          <li>전입신고+확정일자 즉시 진행하여 대항력/우선변제권 확보</li>
+          <li>보증금 일부를 잔금일에 지급, 특약에 인도·말소조건 명시</li>
+          <li>가능 시 HUG 전세보증보험 가입 가능 여부 사전 확인</li>
+        </ul>
+        <div class="cta-row">
+          <a class="btn" href="{{ url_for('self_check_page') }}">자가진단 체크리스트로 점검하기</a>
+          <a class="btn btn-outline" href="{{ url_for('about_page') }}">전문가에게 문의하기</a>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    // 아코디언 토글
+    document.querySelectorAll('.accordion-toggle').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const content = btn.nextElementSibling;
+        content.classList.toggle('open');
+        btn.textContent = content.classList.contains('open') ? '접기' : '사례/예방 체크리스트 열기';
+      });
+    });
+
+    // 스크롤 스파이: 현재 섹션에 해당하는 TOC 링크 활성화
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const sections = Array.from(tocLinks).map(a => document.querySelector(a.getAttribute('href')));
+
+    const onScroll = () => {
+      const y = window.scrollY + 110; // 헤더 높이 보정
+      let activeIdx = 0;
+      sections.forEach((s, i) => { if (s && s.offsetTop <= y) activeIdx = i; });
+      tocLinks.forEach((l, i) => l.classList.toggle('active', i === activeIdx));
+    };
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  </script>
+</body>
+</html>
