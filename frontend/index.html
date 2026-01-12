@@ -4,366 +4,15 @@
     <meta charset="UTF-8">
     <title>세이프홈 - 전세사기 예방 플랫폼</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        /* Hero - 네비바 아래로 패딩 조정 */
-        .hero {
-            background: linear-gradient(120deg, #4f46e5 0%, #7c3aed 100%);
-            padding: 100px 20px 80px;
-            color: white;
-            text-align: center;
-        }
-
-        .hero-content {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .hero h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            letter-spacing: -0.5px;
-        }
-
-        .hero-subtitle {
-            font-size: 20px;
-            margin-bottom: 40px;
-            opacity: 0.95;
-            font-weight: 400;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .cta-btn {
-            display: inline-block;
-            padding: 16px 32px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-
-        .cta-primary {
-            background: white;
-            color: #4f46e5;
-        }
-
-        .cta-primary:hover {
-            background: #f9fafb;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .cta-secondary {
-            background: transparent;
-            color: white;
-            border: 2px solid white;
-        }
-
-        .cta-secondary:hover {
-            background: rgba(255,255,255,0.15);
-        }
-
-        /* Quick Stats */
-        .quick-stats {
-            background: #f8f9fa;
-            padding: 40px 20px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .stats-wrap {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 40px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 36px;
-            font-weight: 700;
-            color: #4f46e5;
-            margin-bottom: 8px;
-        }
-
-        .stat-text {
-            font-size: 14px;
-            color: #6b7280;
-        }
-
-        /* Main Content */
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 80px 20px;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 60px;
-        }
-
-        .section-header h2 {
-            font-size: 36px;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: #1f2937;
-        }
-
-        .section-header p {
-            font-size: 18px;
-            color: #6b7280;
-        }
-
-        /* Features */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 30px;
-            margin-bottom: 60px;
-        }
-
-        .feature {
-            padding: 32px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            transition: all 0.3s;
-            text-align: center;
-        }
-
-        .feature:hover {
-            border-color: #4f46e5;
-            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.12);
-            transform: translateY(-4px);
-        }
-
-        .feature-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-
-        .feature h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #1f2937;
-        }
-
-        .feature p {
-            font-size: 15px;
-            color: #6b7280;
-            line-height: 1.6;
-        }
-
-        /* How to Use */
-        .how-to {
-            background: #fafafa;
-            padding: 80px 20px;
-        }
-
-        .steps {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 40px;
-        }
-
-        .step {
-            text-align: center;
-        }
-
-        .step-num {
-            display: inline-block;
-            width: 60px;
-            height: 60px;
-            background: #4f46e5;
-            color: white;
-            border-radius: 50%;
-            line-height: 60px;
-            font-weight: 700;
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-
-        .step h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #1f2937;
-        }
-
-        .step p {
-            font-size: 15px;
-            color: #6b7280;
-            line-height: 1.6;
-        }
-
-        /* Reviews */
-        .reviews {
-            background: white;
-        }
-
-        .review-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 30px;
-        }
-
-        .review {
-            padding: 32px;
-            background: #f9fafb;
-            border-radius: 12px;
-            border-left: 4px solid #4f46e5;
-        }
-
-        .review-text {
-            font-size: 16px;
-            line-height: 1.7;
-            margin-bottom: 20px;
-            color: #374151;
-        }
-
-        .reviewer {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .reviewer-initial {
-            width: 48px;
-            height: 48px;
-            background: #4f46e5;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 18px;
-        }
-
-        .reviewer-info strong {
-            display: block;
-            font-size: 15px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .reviewer-info span {
-            font-size: 14px;
-            color: #9ca3af;
-        }
-
-        /* Final CTA */
-        .final-cta {
-            background: linear-gradient(120deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-            padding: 80px 20px;
-            text-align: center;
-        }
-
-        .final-cta h2 {
-            font-size: 36px;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-
-        .final-cta p {
-            font-size: 18px;
-            margin-bottom: 32px;
-            opacity: 0.95;
-        }
-
-        /* Footer */
-        footer {
-            background: #1f2937;
-            color: #d1d5db;
-            padding: 60px 20px 30px;
-        }
-
-        .footer-grid {
-            max-width: 1100px;
-            margin: 0 auto 40px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 40px;
-        }
-
-        .footer-col h4 {
-            color: white;
-            font-size: 16px;
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
-
-        .footer-col p {
-            font-size: 14px;
-            line-height: 1.6;
-            color: #d1d5db;
-        }
-
-        .footer-col ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .footer-col ul li {
-            margin-bottom: 12px;
-        }
-
-        .footer-col a {
-            color: #d1d5db;
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.2s;
-        }
-
-        .footer-col a:hover {
-            color: white;
-        }
-
-        .footer-bottom {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding-top: 30px;
-            border-top: 1px solid #374151;
-            text-align: center;
-            font-size: 14px;
-            color: #9ca3af;
-        }
-
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 32px;
-            }
-            .hero-subtitle {
-                font-size: 16px;
-            }
-            .section-header h2 {
-                font-size: 28px;
-            }
-            .final-cta h2 {
-                font-size: 28px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/00_reset.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/01_layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/02_components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/03_pages_index.css') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
+    {% include '_left_sidebar.html' %}
+    {% include '_right_sidebar.html' %}
     
     <!-- Hero -->
     <section class="hero">
@@ -381,124 +30,102 @@
     <div class="quick-stats">
         <div class="stats-wrap">
             <div class="stat-item">
-                <div class="stat-number">23,847</div>
+                <div class="stat-number" id="total-analyses">-</div>
                 <div class="stat-text">누적 분석 건수</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">97.2%</div>
+                <div class="stat-number" id="accuracy">-</div>
                 <div class="stat-text">위험 예측 정확도</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">4.8초</div>
+                <div class="stat-number" id="avg-analysis-time">-</div>
                 <div class="stat-text">평균 분석 시간</div>
             </div>
-        </div>
-    </div>
-
-    <!-- Features -->
-    <div class="container">
-        <div class="section-header">
-            <h2>세이프홈의 특징</h2>
-            <p>복잡한 서류 검토 없이 주소만 입력하세요</p>
-        </div>
-        
-        <div class="features">
-            <div class="feature">
-                <div class="feature-icon">🔍</div>
-                <h3>등기부등본 자동 분석</h3>
-                <p>근저당, 가압류, 경매 이력 등을 자동으로 확인하고 위험 요소를 찾아냅니다.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🗺️</div>
-                <h3>지역 위험도 히트맵</h3>
-                <p>서울 전역의 전세사기 발생 패턴을 분석해 위험 지역을 시각화했습니다.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">⚡</div>
-                <h3>즉시 결과 확인</h3>
-                <p>주소만 입력하면 5초 이내로 상세한 분석 결과를 확인할 수 있습니다.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🏢</div>
-                <h3>건축물 정보 조회</h3>
-                <p>건축 연도, 구조, 용도 등 건물의 기본 정보를 함께 제공합니다.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">📊</div>
-                <h3>종합 점수 제공</h3>
-                <p>여러 지표를 종합해 0-100점 사이의 명확한 위험도 점수를 제공합니다.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🔒</div>
-                <h3>개인정보 보호</h3>
-                <p>입력하신 정보는 분석 후 즉시 삭제되며, 별도로 저장하지 않습니다.</p>
+            <div class="stat-item">
+                <div class="stat-number" id="blocked-cases">-</div>
+                <div class="stat-text">위험 사례 차단</div>
             </div>
         </div>
     </div>
 
-    <!-- How to Use -->
-    <div class="how-to">
+    <!-- 소개 바로가기 섹션 -->
+    <div class="intro-cta-section">
+        <div class="intro-cta-content">
+            <h3>세이프홈이 처음이신가요?</h3>
+            <p>전세사기 예방을 위한 우리의 미션과 서비스에 대해 자세히 알아보세요.<br>
+            안전한 전세 계약을 위한 세이프홈의 모든 것을 소개합니다.</p>
+            <a href="{{ url_for('intro_page') }}" class="intro-cta-btn">
+                <span>세이프홈 소개 바로가기</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Dashboard -->
+    <div class="stats-dashboard">
         <div class="container">
             <div class="section-header">
-                <h2>사용 방법</h2>
-                <p>3단계로 간단하게 확인하세요</p>
+                <h2>2020~2025년 전세사기 현황</h2>
+                <p>실시간 데이터 기반 통계</p>
             </div>
             
-            <div class="steps">
-                <div class="step">
-                    <div class="step-num">1</div>
-                    <h3>주소 입력</h3>
-                    <p>계약하려는 매물의 주소를 검색창에 입력합니다</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">2</div>
-                    <h3>분석 대기</h3>
-                    <p>AI가 등기부등본과 지역 데이터를 분석합니다</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">3</div>
-                    <h3>결과 확인</h3>
-                    <p>위험도 점수와 주의사항을 확인하고 현명하게 결정하세요</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Reviews -->
-    <div class="container reviews">
-        <div class="section-header">
-            <h2>사용자 후기</h2>
-            <p>실제로 세이프홈을 사용해보신 분들의 이야기</p>
-        </div>
-        
-        <div class="review-grid">
-            <div class="review">
-                <p class="review-text">"등기부등본 해석이 어려웠는데, 세이프홈이 한눈에 정리해줘서 좋았어요. 실제로 근저당 문제 있는 집을 피할 수 있었습니다."</p>
-                <div class="reviewer">
-                    <div class="reviewer-initial">김</div>
-                    <div class="reviewer-info">
-                        <strong>김서현</strong>
-                        <span>관악구</span>
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <div class="dashboard-title">년도별 신고 건수</div>
+                    <div class="dashboard-chart">
+                        <div class="bar-chart" id="yearly-chart">
+                            <div class="bar" style="height: 0%"><span>0</span></div>
+                            <div class="bar" style="height: 0%"><span>0</span></div>
+                            <div class="bar" style="height: 0%"><span>0</span></div>
+                            <div class="bar" style="height: 0%"><span>0</span></div>
+                            <div class="bar" style="height: 0%"><span>0</span></div>
+                            <div class="bar" style="height: 0%"><span>0</span></div>
+                        </div>
+                        <div class="chart-labels" id="yearly-labels">
+                            <span>2020</span>
+                            <span>2021</span>
+                            <span>2022</span>
+                            <span>2023</span>
+                            <span>2024</span>
+                            <span>2025</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="review">
-                <p class="review-text">"히트맵 보고 안전한 동네 찾았어요. 계약 전에 꼭 한번 확인해보는 걸 추천합니다!"</p>
-                <div class="reviewer">
-                    <div class="reviewer-initial">박</div>
-                    <div class="reviewer-info">
-                        <strong>박지훈</strong>
-                        <span>송파구</span>
+                <div class="dashboard-card">
+                    <div class="dashboard-title">위험 지역 TOP 5</div>
+                    <div class="danger-ranking" id="danger-ranking">
+                        <div class="rank-item">
+                            <span class="rank-num">-</span>
+                            <span class="rank-region">데이터 로딩 중...</span>
+                            <span class="rank-score">-</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="review">
-                <p class="review-text">"무료인데 이렇게 상세한 정보를 주다니... 중개사무소 가기 전에 미리 확인해서 협상할 때 도움됐어요."</p>
-                <div class="reviewer">
-                    <div class="reviewer-initial">이</div>
-                    <div class="reviewer-info">
-                        <strong>이민준</strong>
-                        <span>강서구</span>
+                <div class="dashboard-card">
+                    <div class="dashboard-title">주요 위험 요소</div>
+                    <div class="risk-factors">
+                        <div class="factor-item">
+                            <span class="factor-name">과도한 근저당</span>
+                            <div class="factor-bar" style="width: 85%"></div>
+                            <span class="factor-percent">85%</span>
+                        </div>
+                        <div class="factor-item">
+                            <span class="factor-name">시세 대비 저가</span>
+                            <div class="factor-bar" style="width: 72%"></div>
+                            <span class="factor-percent">72%</span>
+                        </div>
+                        <div class="factor-item">
+                            <span class="factor-name">다수 가압류</span>
+                            <div class="factor-bar" style="width: 68%"></div>
+                            <span class="factor-percent">68%</span>
+                        </div>
+                        <div class="factor-item">
+                            <span class="factor-name">경매 이력</span>
+                            <div class="factor-bar" style="width: 54%"></div>
+                            <span class="factor-percent">54%</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -512,41 +139,8 @@
         <a href="{{ url_for('searchscan_page') }}" class="cta-btn cta-primary">무료 분석 시작하기</a>
     </div>
 
-    <!-- Footer -->
-    <footer>
-        <div class="footer-grid">
-            <div class="footer-col">
-                <h4>세이프홈</h4>
-                <p>전세사기 예방을 위한<br>AI 분석 플랫폼</p>
-            </div>
-            <div class="footer-col">
-                <h4>서비스</h4>
-                <ul>
-                    <li><a href="{{ url_for('searchscan_page') }}">매물 분석</a></li>
-                    <li><a href="{{ url_for('map_page') }}">위험도 지도</a></li>
-                    <li><a href="{{ url_for('faq_page') }}">자주 묻는 질문</a></li>
-                </ul>
-            </div>
-            <div class="footer-col">
-                <h4>정보</h4>
-                <ul>
-                    <li><a href="#">소개</a></li>
-                    <li><a href="#">이용약관</a></li>
-                    <li><a href="#">개인정보처리방침</a></li>
-                </ul>
-            </div>
-            <div class="footer-col">
-                <h4><a href="{{ url_for('about_page') }}">문의</a></h4>
-                <ul>
-                    <li>help@safehome.kr</li>
-                    <li>평일 09:00 - 18:00</li>
-                    <li>tel: 1234-5678</li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            © 2025 SafeHome. All rights reserved.
-        </div>
-    </footer>
+    {% include '_footer.html' %}
+    
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
 </body>
 </html>

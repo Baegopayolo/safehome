@@ -6,155 +6,68 @@
   <title>세이프홈 - 자가진단 체크리스트</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    /* 히어로 */
-    .check-hero{
-      background: linear-gradient(135deg, #1976d2 0%, #64b5f6 100%);
-      color:#fff; text-align:center; padding:48px 16px 32px;
-    }
-    .check-hero h1{ margin:0 0 8px; font-size:2rem; }
-    .check-hero p{ margin:0; opacity:.95; }
-
-    /* 진행바 */
-    .progress-bar{
-      max-width:680px; margin:24px auto 0; height:8px; background:rgba(255,255,255,.3);
-      border-radius:999px; overflow:hidden;
-    }
-    .progress-fill{
-      height:100%; background:#fff; width:0%; transition:width .3s ease;
-    }
-
-    /* 메인 컨테이너 */
-    .check-main{ max-width:720px; margin:32px auto 48px; padding:0 16px; }
-
-    /* 스텝 카드 */
-    .step-card{
-      background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.08);
-      padding:24px; margin-bottom:20px;
-    }
-    .step-card h3{
-      margin:0 0 4px; color:var(--brand-600); font-size:1.1rem;
-      display:flex; align-items:center; gap:8px;
-    }
-    .step-num{
-      display:inline-flex; align-items:center; justify-content:center;
-      width:28px; height:28px; background:var(--brand-600); color:#fff;
-      border-radius:50%; font-size:.9rem; font-weight:700;
-    }
-    .step-desc{ color:#666; margin:0 0 14px; font-size:.95rem; }
-
-    /* 체크박스 아이템 */
-    .check-item{
-      display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
-      border-radius:8px; transition:background .15s;
-      cursor:pointer; margin-bottom:6px;
-    }
-    .check-item:hover{ background:#f9fafb; }
-    .check-item input[type="checkbox"]{
-      margin-top:2px; width:20px; height:20px; cursor:pointer;
-    }
-    .check-item label{ flex:1; cursor:pointer; }
-
-    /* 결과 패널 */
-    .result-panel{
-      background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.08);
-      padding:24px; margin-top:24px; text-align:center;
-    }
-    .result-panel.hidden{ display:none; }
-    .result-score{ font-size:3rem; font-weight:700; margin:12px 0; }
-    .result-score.safe{ color:#4caf50; }
-    .result-score.warn{ color:#ff9800; }
-    .result-score.danger{ color:#f44336; }
-    .result-msg{ font-size:1.1rem; margin:8px 0 16px; color:#555; }
-    .result-actions{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
-
-    @media (max-width:640px){
-      .check-hero{ padding:40px 12px 24px; }
-      .step-card{ padding:18px; }
-    }
+    .check-hero{background:#1565c0;color:#fff;text-align:center;padding:48px 16px 32px}
+    .check-hero h1{margin:0 0 8px;font-size:2rem}
+    .check-hero p{margin:0;opacity:.95}
+    .progress-bar{max-width:680px;margin:24px auto 0;height:8px;background:rgba(255,255,255,.3);border-radius:999px;overflow:hidden}
+    .progress-fill{height:100%;background:#fff;width:0%;transition:width .3s ease}
+    .check-main{max-width:720px;margin:32px auto 48px;padding:0 16px 50px 16px;position:relative;z-index:10}
+    .step-card{background:#fff;border-radius:12px;border:1px solid #1565c0;box-shadow:none;padding:24px;margin-bottom:20px}
+    .step-card h3{margin:0 0 4px;color:var(--brand-600);font-size:1.1rem;display:flex;align-items:center;gap:8px}
+    .step-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:var(--brand-600);color:#fff;border-radius:50%;font-size:.9rem;font-weight:700}
+    .step-desc{color:#666;margin:0 0 14px;font-size:.95rem}
+    .check-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;transition:background .15s;cursor:pointer;margin-bottom:6px;position:relative;z-index:1}
+    .check-item:hover{background:#f9fafb}
+    .check-item input[type="checkbox"]{margin-top:2px;width:20px;height:20px;cursor:pointer;position:relative;z-index:2;pointer-events:auto}
+    .check-item label{flex:1;cursor:pointer;position:relative;z-index:2;pointer-events:auto;user-select:none}
+    .result-panel{background:#fff;border-radius:12px;border:1px solid #222;box-shadow:none;padding:24px;margin-top:24px;text-align:center}
+    .result-panel.hidden{display:none}
+    .result-score{font-size:3rem;font-weight:700;margin:12px 0}
+    .result-score.safe{color:#4caf50}
+    .result-score.warn{color:#ff9800}
+    .result-score.danger{color:#f44336}
+    .result-msg{font-size:1.1rem;margin:8px 0 16px;color:#555}
+    .result-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+    @media (max-width:640px){.check-hero{padding:40px 12px 24px}.step-card{padding:18px}}
   </style>
 </head>
 <body>
   {% include '_navbar.html' %}
-
-  <!-- 히어로 -->
+  {% include '_left_sidebar.html' %}
+  {% include '_right_sidebar.html' %}
   <section class="check-hero">
     <h1>📋 전세 계약 자가진단</h1>
     <p>아래 항목을 체크하면서 계약 안전도를 확인하세요.</p>
-    <div class="progress-bar">
-      <div class="progress-fill" id="progressFill"></div>
-    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   </section>
-
   <main class="check-main">
-    <!-- 스텝1: 서류 확인 -->
     <article class="step-card">
       <h3><span class="step-num">1</span> 필수 서류 확인</h3>
       <p class="step-desc">계약 전 반드시 확인해야 하는 서류입니다.</p>
-      <div class="check-item">
-        <input type="checkbox" id="doc1" data-point="10">
-        <label for="doc1">등기부등본을 확인했고, 소유자 정보가 계약서와 일치한다.</label>
-      </div>
-      <div class="check-item">
-        <input type="checkbox" id="doc2" data-point="10">
-        <label for="doc2">건축물대장에서 불법 증축이나 용도 위반이 없음을 확인했다.</label>
-      </div>
-      <div class="check-item">
-        <input type="checkbox" id="doc3" data-point="10">
-        <label for="doc3">임대인 신분증과 인감증명서를 대조 확인했다.</label>
-      </div>
+      <div class="check-item"><input type="checkbox" id="doc1" data-point="10"><label for="doc1">등기부등본을 확인했고, 소유자 정보가 계약서와 일치한다.</label></div>
+      <div class="check-item"><input type="checkbox" id="doc2" data-point="10"><label for="doc2">건축물대장에서 불법 증축이나 용도 위반이 없음을 확인했다.</label></div>
+      <div class="check-item"><input type="checkbox" id="doc3" data-point="10"><label for="doc3">임대인 신분증과 인감증명서를 대조 확인했다.</label></div>
     </article>
-
-    <!-- 스텝2: 전세가율 -->
     <article class="step-card">
       <h3><span class="step-num">2</span> 전세가율 및 담보 확인</h3>
       <p class="step-desc">매매가 대비 전세가 비율과 담보 상태를 점검합니다.</p>
-      <div class="check-item">
-        <input type="checkbox" id="ratio1" data-point="15">
-        <label for="ratio1">전세가율이 70% 이하다.</label>
-      </div>
-      <div class="check-item">
-        <input type="checkbox" id="ratio2" data-point="10">
-        <label for="ratio2">근저당/담보 총액이 보증금보다 훨씬 적다.</label>
-      </div>
-      <div class="check-item">
-        <input type="checkbox" id="ratio3" data-point="10">
-        <label for="ratio3">실거래가와 시세를 비교해 매매가가 합리적이다.</label>
-      </div>
+      <div class="check-item"><input type="checkbox" id="ratio1" data-point="15"><label for="ratio1">전세가율이 70% 이하다.</label></div>
+      <div class="check-item"><input type="checkbox" id="ratio2" data-point="10"><label for="ratio2">근저당/담보 총액이 보증금보다 훨씬 적다.</label></div>
+      <div class="check-item"><input type="checkbox" id="ratio3" data-point="10"><label for="ratio3">실거래가와 시세를 비교해 매매가가 합리적이다.</label></div>
     </article>
-
-    <!-- 스텝3: 보험 및 대항력 -->
     <article class="step-card">
       <h3><span class="step-num">3</span> 보험·대항력 확보</h3>
       <p class="step-desc">보증금 보호를 위한 법적 조치 여부입니다.</p>
-      <div class="check-item">
-        <input type="checkbox" id="ins1" data-point="15">
-        <label for="ins1">HUG 전세보증보험 가입을 완료했거나 가입 가능 확인했다.</label>
-      </div>
-      <div class="check-item">
-        <input type="checkbox" id="ins2" data-point="10">
-        <label for="ins2">전입신고와 확정일자를 당일 처리할 계획이다.</label>
-      </div>
-      <div class="check-item">
-        <input type="checkbox" id="ins3" data-point="5">
-        <label for="ins3">계약금을 소유자 명의 계좌로 송금했다.</label>
-      </div>
+      <div class="check-item"><input type="checkbox" id="ins1" data-point="15"><label for="ins1">HUG 전세보증보험 가입을 완료했거나 가입 가능 확인했다.</label></div>
+      <div class="check-item"><input type="checkbox" id="ins2" data-point="10"><label for="ins2">전입신고와 확정일자를 당일 처리할 계획이다.</label></div>
+      <div class="check-item"><input type="checkbox" id="ins3" data-point="5"><label for="ins3">계약금을 소유자 명의 계좌로 송금했다.</label></div>
     </article>
-
-    <!-- 스텝4: 신탁·이중계약 방지 -->
     <article class="step-card">
       <h3><span class="step-num">4</span> 신탁·이중계약 예방</h3>
       <p class="step-desc">신탁 여부와 임대인 신원을 재확인합니다.</p>
-      <div class="check-item">
-        <input type="checkbox" id="fraud1" data-point="10">
-        <label for="fraud1">등기부 '을구'에 신탁 표기가 없거나, 신탁사 동의서를 받았다.</label>
-      </div>
-      <div class="check-item">
-        <input type="checkbox" id="fraud2" data-point="5">
-        <label for="fraud2">현장에서 실제 거주자를 확인했고, 임대인과 직접 만났다.</label>
-      </div>
+      <div class="check-item"><input type="checkbox" id="fraud1" data-point="10"><label for="fraud1">등기부 '을구'에 신탁 표기가 없거나, 신탁사 동의서를 받았다.</label></div>
+      <div class="check-item"><input type="checkbox" id="fraud2" data-point="5"><label for="fraud2">현장에서 실제 거주자를 확인했고, 임대인과 직접 만났다.</label></div>
     </article>
-
-    <!-- 결과 패널 -->
     <section class="result-panel hidden" id="resultPanel">
       <h2>진단 결과</h2>
       <div class="result-score" id="resultScore">0점</div>
@@ -165,129 +78,38 @@
         <a href="{{ url_for('about_page') }}" class="btn btn-outline">전문가 문의</a>
       </div>
     </section>
-
-    <div style="margin-top:32px; text-align:center;">
-      <button class="btn" onclick="calculate()">진단 결과 보기</button>
+    <div style="margin-top:32px;text-align:center">
+      <button class="btn" onclick="calculate()" style="margin-right:16px">진단 결과 보기</button>
       <button class="btn btn-outline" onclick="resetAll()">초기화</button>
     </div>
   </main>
-
   <script>
-    const checks = document.querySelectorAll('input[type="checkbox"]');
-    const progressFill = document.getElementById('progressFill');
-    const resultPanel = document.getElementById('resultPanel');
-    const resultScore = document.getElementById('resultScore');
-    const resultMsg = document.getElementById('resultMsg');
-    const resultActions = document.querySelector('.result-actions');
-
-    // 진행바 업데이트
-    function updateProgress(){
-      const checked = document.querySelectorAll('input[type="checkbox"]:checked').length;
-      const total = checks.length;
-      const percent = (checked / total) * 100;
-      progressFill.style.width = percent + '%';
-    }
-    checks.forEach(c => c.addEventListener('change', updateProgress));
-
-    // 결과 계산 및 맞춤형 액션 제공
-    function calculate(){
-      let score = 0;
-      const checkedItems = [];
-      
-      checks.forEach(c => { 
-        if(c.checked) {
-          score += parseInt(c.dataset.point || 0);
-          checkedItems.push(c.id);
+    const mapUrl = "{{ url_for('map_page') }}";
+    const faqUrl = "{{ url_for('faq_page') }}";
+    const scamTypesUrl = "{{ url_for('scam_types_page') }}";
+    const searchscanUrl = "{{ url_for('searchscan_page') }}";
+    const aboutUrl = "{{ url_for('about_page') }}";
+    const checks=document.querySelectorAll('input[type="checkbox"]'),progressFill=document.getElementById('progressFill'),resultPanel=document.getElementById('resultPanel'),resultScore=document.getElementById('resultScore'),resultMsg=document.getElementById('resultMsg'),resultActions=document.querySelector('.result-actions');
+    function updateProgress(){const checked=document.querySelectorAll('input[type="checkbox"]:checked').length,total=checks.length,percent=(checked/total)*100;progressFill.style.width=percent+'%'}
+    checks.forEach(c=>{
+      c.addEventListener('change',updateProgress);
+      c.addEventListener('click',function(e){e.stopPropagation()});
+    });
+    document.querySelectorAll('.check-item').forEach(item=>{
+      item.addEventListener('click',function(e){
+        if(e.target.tagName!=='INPUT'&&e.target.tagName!=='LABEL'){
+          const checkbox=item.querySelector('input[type="checkbox"]');
+          if(checkbox){
+            checkbox.checked=!checkbox.checked;
+            updateProgress();
+          }
         }
       });
-      
-      resultPanel.classList.remove('hidden');
-      resultScore.textContent = score + '점';
-      
-      // 클래스 초기화
-      resultScore.className = 'result-score';
-      
-      // 점수별 메시지 및 추천 액션
-      let message = '';
-      let actions = '';
-      
-      if(score >= 85){
-        // 매우 안전 (85점 이상)
-        resultScore.classList.add('safe');
-        message = '✅ 매우 안전한 계약입니다!<br>대부분의 리스크를 차단했습니다. 안심하고 계약을 진행하세요.';
-        actions = `
-          <a href="{{ url_for('map_page') }}" class="btn">주변 지역 안전도 확인</a>
-          <a href="{{ url_for('faq_page') }}" class="btn btn-outline">자주 묻는 질문</a>
-        `;
-      } else if(score >= 70){
-        // 안전 (70-84점)
-        resultScore.classList.add('safe');
-        message = '✅ 안전한 수준입니다.<br>일부 항목을 추가 확인하면 더욱 안전합니다.';
-        actions = `
-          <a href="{{ url_for('scam_types_page') }}" class="btn">전세사기 유형 확인</a>
-          <a href="{{ url_for('searchscan_page') }}" class="btn btn-outline">매물 분석하기</a>
-        `;
-      } else if(score >= 50){
-        // 주의 필요 (50-69점)
-        resultScore.classList.add('warn');
-        message = '⚠️ 주의가 필요합니다.<br>체크하지 않은 항목을 반드시 확인하세요. 특히 서류 확인과 보험 가입이 중요합니다.';
-        actions = `
-          <a href="{{ url_for('scam_types_page') }}" class="btn">전세사기 예방법 보기</a>
-          <a href="{{ url_for('about_page') }}" class="btn">전문가 상담 신청</a>
-          <a href="{{ url_for('searchscan_page') }}" class="btn btn-outline">매물 위험도 분석</a>
-        `;
-      } else if(score >= 30){
-        // 위험 (30-49점)
-        resultScore.classList.add('danger');
-        message = '🚨 위험 수준입니다.<br>계약 전 반드시 전문가 상담을 받으시고, 미확인 항목을 모두 점검하세요.';
-        actions = `
-          <a href="{{ url_for('about_page') }}" class="btn">긴급 전문가 상담</a>
-          <a href="{{ url_for('scam_types_page') }}" class="btn btn-outline">사기 유형 학습</a>
-          <a href="tel:1899-5075" class="btn btn-outline">HUG 상담전화</a>
-        `;
-      } else {
-        // 매우 위험 (30점 미만)
-        resultScore.classList.add('danger');
-        message = '🚨🚨 매우 위험합니다!<br>현재 상태로 계약하면 보증금 피해 가능성이 높습니다. 즉시 전문가 상담을 받으세요.';
-        actions = `
-          <a href="{{ url_for('about_page') }}" class="btn" style="background:#f44336;">긴급 상담 신청</a>
-          <a href="tel:1899-5075" class="btn">HUG 전화 상담</a>
-          <a href="https://www.easylaw.go.kr" target="_blank" class="btn btn-outline">법률 지원 찾기</a>
-        `;
-      }
-      
-      resultMsg.innerHTML = message;
-      resultActions.innerHTML = actions;
-      
-      // 결과 패널로 부드럽게 스크롤
-      window.scrollTo({ top: resultPanel.offsetTop - 80, behavior: 'smooth' });
-      
-      // 로컬 스토리지에 점수 저장 (선택사항)
-      localStorage.setItem('lastCheckScore', score);
-      localStorage.setItem('lastCheckDate', new Date().toISOString());
-    }
-
-    // 초기화
-    function resetAll(){
-      if(confirm('모든 체크를 초기화하시겠습니까?')){
-        checks.forEach(c => c.checked = false);
-        updateProgress();
-        resultPanel.classList.add('hidden');
-      }
-    }
-
-    // 페이지 로드 시 이전 점수 표시 (선택사항)
-    window.addEventListener('DOMContentLoaded', function(){
-      const lastScore = localStorage.getItem('lastCheckScore');
-      const lastDate = localStorage.getItem('lastCheckDate');
-      if(lastScore && lastDate){
-        const date = new Date(lastDate);
-        const days = Math.floor((Date.now() - date) / (1000*60*60*24));
-        if(days <= 7){
-          console.log(`최근 진단: ${lastScore}점 (${days}일 전)`);
-        }
-      }
     });
+    function calculate(){let score=0;const checkedItems=[];checks.forEach(c=>{if(c.checked){score+=parseInt(c.dataset.point||0);checkedItems.push(c.id)}});resultPanel.classList.remove('hidden');resultScore.textContent=score+'점';resultScore.className='result-score';let message='',actions='';if(score>=85){resultScore.classList.add('safe');message='✅ 매우 안전한 계약입니다!<br>대부분의 리스크를 차단했습니다. 안심하고 계약을 진행하세요.';actions='<a href="'+mapUrl+'" class="btn">주변 지역 안전도 확인</a><a href="'+faqUrl+'" class="btn btn-outline">자주 묻는 질문</a>'}else if(score>=70){resultScore.classList.add('safe');message='✅ 안전한 수준입니다.<br>일부 항목을 추가 확인하면 더욱 안전합니다.';actions='<a href="'+scamTypesUrl+'" class="btn">전세사기 유형 확인</a><a href="'+searchscanUrl+'" class="btn btn-outline">매물 분석하기</a>'}else if(score>=50){resultScore.classList.add('warn');message='⚠️ 주의가 필요합니다.<br>체크하지 않은 항목을 반드시 확인하세요. 특히 서류 확인과 보험 가입이 중요합니다.';actions='<a href="'+scamTypesUrl+'" class="btn">전세사기 예방법 보기</a><a href="'+aboutUrl+'" class="btn">전문가 상담 신청</a><a href="'+searchscanUrl+'" class="btn btn-outline">매물 위험도 분석</a>'}else if(score>=30){resultScore.classList.add('danger');message='🚨 위험 수준입니다.<br>계약 전 반드시 전문가 상담을 받으시고, 미확인 항목을 모두 점검하세요.';actions='<a href="'+aboutUrl+'" class="btn">긴급 전문가 상담</a><a href="'+scamTypesUrl+'" class="btn btn-outline">사기 유형 학습</a><a href="tel:1899-5075" class="btn btn-outline">HUG 상담전화</a>'}else{resultScore.classList.add('danger');message='🚨🚨 매우 위험합니다!<br>현재 상태로 계약하면 보증금 피해 가능성이 높습니다. 즉시 전문가 상담을 받으세요.';actions='<a href="'+aboutUrl+'" class="btn" style="background:#f44336">긴급 상담 신청</a><a href="tel:1899-5075" class="btn">HUG 전화 상담</a><a href="https://www.easylaw.go.kr" target="_blank" class="btn btn-outline">법률 지원 찾기</a>'}resultMsg.innerHTML=message;resultActions.innerHTML=actions;window.scrollTo({top:resultPanel.offsetTop-80,behavior:'smooth'});localStorage.setItem('lastCheckScore',score);localStorage.setItem('lastCheckDate',new Date().toISOString())}
+    function resetAll(){if(confirm('모든 체크를 초기화하시겠습니까?')){checks.forEach(c=>c.checked=false);updateProgress();resultPanel.classList.add('hidden')}}
+    window.addEventListener('DOMContentLoaded',function(){const lastScore=localStorage.getItem('lastCheckScore'),lastDate=localStorage.getItem('lastCheckDate');if(lastScore&&lastDate){const date=new Date(lastDate),days=Math.floor((Date.now()-date)/(1000*60*60*24));if(days<=7)console.log(`최근 진단: ${lastScore}점 (${days}일 전)`)}});
   </script>
+  {% include '_footer.html' %}
 </body>
 </html>

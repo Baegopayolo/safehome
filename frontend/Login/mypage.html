@@ -3,19 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <title>세이프홈 - 마이페이지</title>
-    <link rel="stylesheet" href="../static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mypage.css') }}">
 </head>
 <body>
-    <header>
-        <a href="{{ url_for('home') }}" class="logo">🏠 세이프홈</a>
-        <nav>
-            <a href="{{ url_for('logout') }}">로그아웃</a>
-        </nav>
-    </header>
-    <main>
-        <h1>마이페이지</h1>
-        <h2>{{ username }}님, 환영합니다!</h2>
-        <p>이곳에서 관심 지역 알림 설정, 분석 이력 등을 관리할 수 있습니다.</p>
-    </main>
+    {% include '_navbar.html' %}
+    
+    <div class="container">
+        <div class="page-header">
+            <h1>마이페이지</h1>
+            <p class="welcome-text">👋 {{ username }}님, 환영합니다!</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert {{ category }}">
+                    <span>{% if category == 'success' %}✓{% elif category == 'danger' %}⚠️{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- 사용자 정보 카드 -->
+        <div class="user-info-card">
+            <div class="user-avatar">
+                👤
+            </div>
+            <div class="user-details">
+                <div class="user-name">{{ username }}</div>
+                <div class="user-meta">
+                    <div class="user-meta-item">
+                        📅 가입일: {{ join_date }}
+                    </div>
+                    <div class="user-meta-item">
+                        ✓ 로그인 상태
+                    </div>
+                </div>
+                <div class="user-stats">
+                    <div class="user-stat">
+                        <div class="user-stat-value">{{ favorites|length }}</div>
+                        <div class="user-stat-label">즐겨찾기</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-value">{{ history|length }}</div>
+                        <div class="user-stat-label">내 리뷰</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-value">{{ notifications|length }}</div>
+                        <div class="user-stat-label">알림</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-value">{{ reports|length }}</div>
+                        <div class="user-stat-label">신고</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 즐겨찾기 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><span class="card-icon">⭐</span> 즐겨찾기</h3>
+                <a href="#" class="view-all-link">전체보기 →</a>
+            </div>
+            
+            <!-- 위험도 범례 -->
+            <div style="display: flex; gap: 12px; margin-bottom: 16px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 12px;">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <div style="width: 12px; height: 12px; background: #dc3545; border-radius: 3px;"></div>
+                    <span>위험 (80점 이상)</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <div style="width: 12px; height: 12px; background: #ffc107; border-radius: 3px;"></div>
+                    <span>주의 (60-79점)</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <div style="width: 12px; height: 12px; background: #28a745; border-radius: 3px;"></div>
+                    <span>안전 (60점 미만)</span>
+                </div>
+            </div>
+            
+            {% if favorites %}
+            <div class="favorite-list">
+                {% for fav in favorites %}
+                <div class="favorite-item">
+                    <div class="item-content">
+                        <div class="item-title">
+                            {{ fav.address }}
+                            {% if fav.risk_level == 'safe' %}
+                            <span class="risk-badge safe">안전</span>
+                            {% elif fav.risk_level == 'warning' %}
+                            <span class="risk-badge warning">주의</span>
+                            {% else %}
+                            <span class="risk-badge danger">위험</span>
+                            {% endif %}
+                        </div>
+                        <div class="item-meta">{{ fav.date_added }} · 위험도: {{ fav.risk_score }}점</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-small btn-view" onclick="searchFromFavorite('{{ fav.address }}')">검색</button>
+                        <button class="btn-small btn-view" onclick="window.location.href='/map?region={{ fav.address }}'">지도보기</button>
+                        <button class="btn-small btn-remove" onclick="removeFavorite('{{ fav.id }}')">삭제</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <p>즐겨찾기한 지역이 없습니다.<br>관심 있는 지역을 추가해보세요!</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 내 리뷰 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><span class="card-icon">⭐</span> 내 리뷰</h3>
+                <a href="#" class="view-all-link" onclick="openReviewModal(); return false;">리뷰 작성하기 →</a>
+            </div>
+            
+            {% if reviews %}
+            <div class="history-list">
+                {% for review in reviews %}
+                <div class="history-item">
+                    <div class="item-content">
+                        <div class="item-title">
+                            {{ review.region }}
+                            <div style="display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;">
+                                {% for i in range(5) %}
+                                    {% if i < review.rating %}
+                                        <span style="color: #ffc107; font-size: 14px;">★</span>
+                                    {% else %}
+                                        <span style="color: #ddd; font-size: 14px;">☆</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="item-meta">
+                            {{ review.content or '내용 없음' }}
+                        </div>
+                        <div class="item-meta" style="font-size: 12px; color: #9ca3af; margin-top: 4px;">{{ review.created_at }}</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-small btn-edit" onclick="editReview('{{ review.id }}')" title="수정">✏️</button>
+                        <button class="btn-small btn-danger" onclick="deleteReview('{{ review.id }}')" title="삭제">🗑️</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">⭐</div>
+                <p>작성한 리뷰가 없습니다.</p>
+                <button class="btn" onclick="openReviewModal()" style="margin-top: 16px; background: #1565c0; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">리뷰 작성하기</button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 알림 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><span class="card-icon">🔔</span> 알림</h3>
+                <a href="#" class="view-all-link" onclick="markAllNotificationsAsRead(); return false;">모두 읽음으로 표시 →</a>
+            </div>
+            
+            {% if notifications %}
+            <div class="notification-list" id="notification-list">
+                {% for notif in notifications[:5] %}
+                <div class="notification-item {% if not notif.is_read %}unread{% endif %} {{ notif.type or 'info' }}" onclick="readNotification('{{ notif.id }}')">
+                    {% if not notif.is_read %}<div class="notification-dot"></div>{% endif %}
+                    <div class="item-content">
+                        <div class="item-title">{{ notif.title }}</div>
+                        <div class="item-meta">{{ notif.message }}</div>
+                        <div class="item-meta" style="font-size: 12px; color: #9ca3af; margin-top: 4px;">{{ notif.created_at }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if notifications|length > 5 %}
+                <div id="hidden-notifications" style="display: none;">
+                    {% for notif in notifications[5:] %}
+                    <div class="notification-item {% if not notif.is_read %}unread{% endif %} {{ notif.type or 'info' }}" onclick="readNotification('{{ notif.id }}')">
+                        {% if not notif.is_read %}<div class="notification-dot"></div>{% endif %}
+                        <div class="item-content">
+                            <div class="item-title">{{ notif.title }}</div>
+                            <div class="item-meta">{{ notif.message }}</div>
+                            <div class="item-meta" style="font-size: 12px; color: #9ca3af; margin-top: 4px;">{{ notif.created_at }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div style="text-align: center; margin-top: 16px;">
+                    <button id="show-more-notifications" class="btn-small btn-view" onclick="showMoreNotifications()">더보기 ({{ notifications|length - 5 }}개)</button>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🔕</div>
+                <p>새로운 알림이 없습니다.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 신고 내역 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><span class="card-icon">🚨</span> 내 신고 내역</h3>
+                <span class="view-all-link">{{ reports|length }}건</span>
+            </div>
+            
+            {% if reports %}
+            <div class="history-list">
+                {% for report in reports %}
+                <div class="history-item">
+                    <div class="item-content">
+                        <div class="item-title">
+                            <strong>{{ report.region }}</strong>
+                            {% if report.status == 'pending' %}
+                            <span class="risk-badge warning">대기중</span>
+                            {% elif report.status == 'investigating' %}
+                            <span class="risk-badge warning">조사중</span>
+                            {% elif report.status == 'resolved' %}
+                            <span class="risk-badge safe">처리완료</span>
+                            {% else %}
+                            <span class="risk-badge warning">대기중</span>
+                            {% endif %}
+                        </div>
+                        <div class="item-meta" style="margin-top: 8px;">
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px;">
+                                <span style="font-weight: 600; color: #dc3545;">{{ report.report_type_kr }}</span>
+                                <span style="color: #6c757d;">·</span>
+                                <span style="color: #6c757d; font-size: 13px;">{{ report.created_at }}</span>
+                            </div>
+                            {% if report.property_address and report.property_address != '주소 정보 없음' %}
+                            <div style="font-size: 13px; color: #495057; margin-top: 4px;">
+                                📍 {{ report.property_address }}
+                            </div>
+                            {% endif %}
+                            {% if report.description %}
+                            <div style="font-size: 12px; color: #6c757d; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; line-height: 1.5;">
+                                {{ report.description }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <p>신고 내역이 없습니다.<br>의심스러운 매물을 발견하시면 신고해주세요.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 내 정보 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><span class="card-icon">👤</span> 내 정보</h3>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>아이디</label>
+                    <input type="text" value="{{ username }}" readonly style="background: #f9fafb; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>가입일</label>
+                    <input type="text" value="{{ join_date }}" readonly style="background: #f9fafb; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>로그인 상태</label>
+                    <input type="text" value="로그인됨 ✓" readonly style="background: #f9fafb; cursor: not-allowed;">
+                </div>
+            </div>
+        </div>
+
+        <!-- 비밀번호 변경 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><span class="card-icon">🔐</span> 비밀번호 변경</h3>
+            </div>
+            <form method="POST" action="{{ url_for('change_password') }}">
+                <div class="row">
+                    <div class="form-group">
+                        <label for="current_password">현재 비밀번호</label>
+                        <input type="password" id="current_password" name="current_password" required placeholder="현재 비밀번호를 입력하세요">
+                    </div>
+                    <div class="form-group">
+                        <label for="new_password">새 비밀번호</label>
+                        <input type="password" id="new_password" name="new_password" minlength="6" required placeholder="새 비밀번호 (6자 이상)">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm_password">새 비밀번호 확인</label>
+                        <input type="password" id="confirm_password" name="confirm_password" minlength="6" required placeholder="새 비밀번호를 다시 입력하세요">
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 12px;">
+                    <button type="submit" class="btn">비밀번호 변경</button>
+                    <a href="{{ url_for('logout') }}" class="btn btn-secondary" style="background: white; color: #1565c0; border: 2px solid #1565c0; text-decoration: none; display: inline-block; text-align: center;">로그아웃</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 리뷰 작성 모달 -->
+    <div id="review-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 500px; margin: 50px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">리뷰 작성</h3>
+                <button onclick="closeReviewModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+            </div>
+            <form id="review-form">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">지역명</label>
+                    <input type="text" id="review-region" placeholder="예: 강남구 역삼동" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">평점</label>
+                    <div class="rating-stars" id="rating-stars" style="display: flex; gap: 8px; font-size: 32px;">
+                        <span class="star" data-rating="1" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="2" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="3" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="4" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="5" style="cursor: pointer; color: #ddd;">★</span>
+                    </div>
+                    <input type="hidden" id="review-rating" value="0" required>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">리뷰 내용</label>
+                    <textarea id="review-content" placeholder="이 지역에 대한 경험을 공유해주세요..." required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; min-height: 120px; resize: vertical;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="closeReviewModal()" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">취소</button>
+                    <button type="submit" style="padding: 10px 20px; background: #1565c0; color: white; border: none; border-radius: 6px; cursor: pointer;">리뷰 등록</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/mypage.js') }}"></script>
+    {% include '_footer.html' %}
 </body>
 </html>

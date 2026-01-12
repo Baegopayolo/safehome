@@ -5,138 +5,66 @@
     <title>세이프홈 - 자주 묻는 질문</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-      .faq-container { max-width: 720px; margin: 48px auto; padding: 0 16px 48px 16px; }
-      .faq-item {
-        background: #fff; border-radius: 8px; margin-bottom: 12px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-      }
-      .faq-question {
-        cursor: pointer; padding: 16px 18px; font-weight: 600;
-        color: var(--brand-600); border-radius: 8px;
-        transition: background 0.2s;
-        display: flex; justify-content: space-between; align-items: center;
-      }
-      .faq-question:hover { background: #f3f7ff; }
-      .faq-answer {
-        max-height: 0; overflow: hidden;
-        transition: max-height 0.3s ease, padding 0.3s ease;
-        padding: 0 18px;
-      }
-      .faq-answer.open {
-        max-height: 500px;
-        padding: 0 18px 16px 18px;
-      }
-      .toggle-icon {
-        font-size: 1.2rem; transition: transform 0.3s;
-      }
-      .faq-item.active .toggle-icon {
-        transform: rotate(180deg);
-      }
+        .faq-container{max-width:720px;margin:48px auto;padding:0 16px 48px}
+        .faq-item{background:#fff;border-radius:8px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+        .faq-question{cursor:pointer;padding:16px 18px;font-weight:600;color:var(--brand-600);border-radius:8px;transition:background 0.2s;display:flex;justify-content:space-between;align-items:center}
+        .faq-question:hover{background:#f3f7ff}
+        .faq-answer{max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease;padding:0 18px}
+        .faq-answer.open{max-height:500px;padding:0 18px 16px}
+        .toggle-icon{font-size:1.2rem;transition:transform 0.3s}
+        .faq-item.active .toggle-icon{transform:rotate(180deg)}
+        .help-section{text-align:center;margin-top:48px;padding:40px 24px;background:#f8f9fa;border-radius:12px}
+        .help-section h2{margin:0 0 12px;font-size:24px;font-weight:700;color:#1f2937}
+        .help-section p{margin:0 0 24px;font-size:16px;color:#6b7280;line-height:1.6}
+        .help-section .btn-inquiry{display:inline-block;padding:14px 32px;background:var(--brand-600);color:white;text-decoration:none;border-radius:8px;font-size:16px;font-weight:600;transition:all 0.2s;box-shadow:0 2px 8px rgba(25,118,210,0.2)}
+        .help-section .btn-inquiry:hover{background:var(--brand-700);transform:translateY(-2px);box-shadow:0 4px 12px rgba(25,118,210,0.3)}
     </style>
 </head>
 <body>
     {% include '_navbar.html' %}
+    {% include '_left_sidebar.html' %}
+    {% include '_right_sidebar.html' %}
     <main class="faq-container">
-        <h1 style="text-align:center; margin-bottom:32px;">자주 묻는 질문 (FAQ)</h1>
-
+        <h1 style="text-align:center;margin-bottom:32px">자주 묻는 질문 (FAQ)</h1>
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. HUG 전세보증보험이 뭔가요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. 집주인이 보증금을 돌려주지 않을 경우, 주택도시보증공사(HUG)가 대신 보증금을 반환해주는 보험 상품입니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. HUG 전세보증보험이 뭔가요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. 집주인이 보증금을 돌려주지 않을 경우, 주택도시보증공사(HUG)가 대신 보증금을 반환해주는 보험 상품입니다.</p></div>
         </div>
-
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. 대항력이란 무슨 뜻인가요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. 전입신고를 마치면 생기는 법적 권리로, 집주인이 바뀌더라도 새로운 집주인에게 계약의 유효함을 주장하고 거주할 수 있는 힘을 의미합니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. 대항력이란 무슨 뜻인가요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. 전입신고를 마치면 생기는 법적 권리로, 집주인이 바뀌더라도 새로운 집주인에게 계약의 유효함을 주장하고 거주할 수 있는 힘을 의미합니다.</p></div>
         </div>
-
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. 전세가율이 높으면 왜 위험한가요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. 전세가율이 높다는 것은 집값에 비해 전세 보증금이 많다는 뜻입니다. 집값이 떨어지거나 경매로 넘어갈 경우, 보증금을 돌려받기 어려울 수 있습니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. 전세가율이 높으면 왜 위험한가요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. 전세가율이 높다는 것은 집값에 비해 전세 보증금이 많다는 뜻입니다. 집값이 떨어지거나 경매로 넘어갈 경우, 보증금을 돌려받기 어려울 수 있습니다.</p></div>
         </div>
-
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. 등기부등본은 어디서 발급받나요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. 인터넷 등기소(www.iros.go.kr)에서 무료로 발급받을 수 있습니다. 가까운 등기소를 방문해도 가능합니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. 등기부등본은 어디서 발급받나요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. 인터넷 등기소(www.iros.go.kr)에서 무료로 발급받을 수 있습니다. 가까운 등기소를 방문해도 가능합니다.</p></div>
         </div>
-
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. 전세사기를 예방하려면 어떻게 해야 하나요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. ① 등기부등본 확인 ② 전세가율 70% 이하 확인 ③ HUG 전세보증보험 가입 ④ 계약 전 집주인 신원 확인 ⑤ 실거래가 확인 등이 필수입니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. 전세사기를 예방하려면 어떻게 해야 하나요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. ① 등기부등본 확인 ② 전세가율 70% 이하 확인 ③ HUG 전세보증보험 가입 ④ 계약 전 집주인 신원 확인 ⑤ 실거래가 확인 등이 필수입니다.</p></div>
         </div>
-
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. 세이프홈 서비스는 어떻게 운영되나요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. 세이프홈은 국토교통부 실거래가 정보, 주택도시보증공사(HUG) 보증사고 현황 등 공공데이터를 기반으로 위험도를 분석하여 제공합니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. 세이프홈 서비스는 어떻게 운영되나요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. 세이프홈은 국토교통부 실거래가 정보, 주택도시보증공사(HUG) 보증사고 현황 등 공공데이터를 기반으로 위험도를 분석하여 제공합니다.</p></div>
         </div>
-
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. 서비스에 없는 지역/매물도 분석이 가능한가요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. 현재는 등록된 데이터에 한해 분석이 가능합니다. 추후 더 많은 지역과 매물이 추가될 예정입니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. 서비스에 없는 지역/매물도 분석이 가능한가요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. 현재는 등록된 데이터에 한해 분석이 가능합니다. 추후 더 많은 지역과 매물이 추가될 예정입니다.</p></div>
         </div>
-
         <div class="faq-item">
-            <div class="faq-question">
-                <span>Q. 추가로 궁금한 점이 있으면 어디에 문의하나요?</span>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="faq-answer">
-                <p>A. 세이프홈 웹사이트 하단의 '문의하기' 페이지를 통해 연락주시면 빠르게 답변드리겠습니다.</p>
-            </div>
+            <div class="faq-question"><span>Q. 추가로 궁금한 점이 있으면 어디에 문의하나요?</span><span class="toggle-icon">▼</span></div>
+            <div class="faq-answer"><p>A. 세이프홈 웹사이트 하단의 '문의하기' 페이지를 통해 연락주시면 빠르게 답변드리겠습니다.</p></div>
+        </div>
+        <div class="help-section">
+            <h2>도움이 필요하신가요?</h2>
+            <p>궁금한 사항에 대해 문의하고 답변을 받을 수 있습니다.</p>
+            <a href="/about" class="btn-inquiry">문의하기</a>
         </div>
     </main>
-
-    <script>
-    document.querySelectorAll('.faq-question').forEach(q => {
-    q.addEventListener('click', function() {
-        const item = this.parentElement;
-        const answer = item.querySelector('.faq-answer');
-        const isOpen = answer.classList.contains('open');
-
-        // 다른 항목 닫기(선택사항)
-        document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('open'));
-        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
-
-        if (!isOpen) {
-          answer.classList.add('open');
-          item.classList.add('active');
-        }
-      });
-    });
-    </script>
+    <script>document.querySelectorAll('.faq-question').forEach(q=>{q.addEventListener('click',function(){const item=this.parentElement,answer=item.querySelector('.faq-answer'),isOpen=answer.classList.contains('open');document.querySelectorAll('.faq-answer').forEach(a=>a.classList.remove('open'));document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('active'));if(!isOpen){answer.classList.add('open');item.classList.add('active')}})})</script>
+    {% include '_footer.html' %}
 </body>
 </html>

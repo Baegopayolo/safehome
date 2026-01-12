@@ -5,85 +5,98 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 회원가입</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body{background:#f7f8fa;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+        .container{max-width:480px;width:100%;padding:48px 40px;background:white;border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+        h2{text-align:center;font-size:32px;font-weight:700;color:#1f2937;margin-bottom:8px}
+        .subtitle{text-align:center;font-size:16px;color:#6b7280;margin-bottom:40px}
+        .form-group{margin-bottom:24px;position:relative}
+        .form-group label{display:block;font-weight:500;color:#9ca3af;margin-bottom:8px;font-size:14px}
+        .input-wrapper{position:relative;display:flex;align-items:center}
+        .input-icon{position:absolute;left:16px;width:20px;height:20px;color:#9ca3af;pointer-events:none}
+        .form-group input{width:100%;height:52px;padding:0 16px 0 48px;border:none;border-bottom:2px solid #e5e7eb;background:transparent;font-size:15px;transition:border-color 0.2s}
+        .form-group input:focus{outline:none;border-bottom-color:#1565c0}
+        .form-group input::placeholder{color:#9ca3af}
+        .password-toggle{position:absolute;right:16px;background:none;border:none;color:#9ca3af;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center}
+        .password-toggle:hover{color:#1565c0}
+        .btn{width:100%;height:52px;background:#1565c0;color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.2s;margin-top:8px}
+        .btn:hover{background:#0d4fa3;transform:translateY(-2px);box-shadow:0 8px 20px rgba(21,101,192,0.3)}
+        .alert{padding:14px 16px;border-radius:10px;margin-bottom:20px;font-size:14px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+        .login-link{text-align:center;margin-top:24px;font-size:14px;color:#6b7280}
+        .login-link a{color:#1565c0;text-decoration:none;font-weight:600}
+        .login-link a:hover{text-decoration:underline}
+    </style>
 </head>
 <body>
-    {% include '_navbar.html' %}
     <main class="container">
         <h2>회원가입</h2>
-        <form id="registerForm" method="POST" action="/api/register" novalidate>
-            <div class="form-group">
-                <label for="username">아이디</label>
-                <input id="username" name="username" type="text" required minlength="3" autocomplete="username">
-            </div>
-
+        <p class="subtitle">지금 바로 계정을 생성하세요.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+        <form id="registerForm" method="POST" action="{{ url_for('register') }}">
             <div class="form-group">
                 <label for="email">이메일</label>
-                <input id="email" name="email" type="email" required autocomplete="email">
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <input id="email" name="email" type="email" required autocomplete="email" placeholder="이메일 주소를 입력하세요.">
+                </div>
             </div>
-
+            <div class="form-group">
+                <label for="username">아이디</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    <input id="username" name="username" type="text" required minlength="3" autocomplete="username" placeholder="아이디를 입력하세요.">
+                </div>
+            </div>
             <div class="form-group">
                 <label for="password">비밀번호</label>
-                <input id="password" name="password" type="password" required minlength="6" autocomplete="new-password">
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <input id="password" name="password" type="password" required minlength="6" autocomplete="new-password" placeholder="비밀번호를 입력하세요.">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
-
             <div class="form-group">
                 <label for="password2">비밀번호 확인</label>
-                <input id="password2" name="password2" type="password" required minlength="6" autocomplete="new-password">
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <input id="password2" name="password2" type="password" required minlength="6" autocomplete="new-password" placeholder="비밀번호를 확인해 주세요.">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password2')">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
-
-            <div class="form-group">
-                <label class="checkbox">
-                    <input id="agree" name="agree" type="checkbox" required> 이용약관 및 개인정보처리방침에 동의합니다
-                </label>
-            </div>
-
             <button type="submit" class="btn">가입하기</button>
         </form>
-
+        <p class="login-link">
+            이미 계정이 있으신가요? <a href="{{ url_for('login') }}">로그인</a>
+        </p>
         <section id="flash" class="flash-messages" aria-live="polite"></section>
     </main>
-
     <script>
-    // 쿼리 ?msg=로 전달된 메시지 표시 (정적 미리보기용)
-    (function showQueryMsg(){
-      const params = new URLSearchParams(location.search);
-      const msg = params.get('msg');
-      if(msg){
-        document.getElementById('flash').innerHTML = '<div class="alert">'+ decodeURIComponent(msg) +'</div>';
-      }
-    })();
-
-    // 클라이언트 유효성 검사: 비밀번호 일치 및 기본 길이 검사
-    document.getElementById('registerForm').addEventListener('submit', function(e){
-      const flash = document.getElementById('flash');
-      flash.innerHTML = '';
-      const username = document.getElementById('username').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const pw = document.getElementById('password').value;
-      const pw2 = document.getElementById('password2').value;
-      const agree = document.getElementById('agree').checked;
-      const errors = [];
-
-      if(username.length < 3) errors.push('아이디는 최소 3자 이상입니다.');
-      if(!/^\S+@\S+\.\S+$/.test(email)) errors.push('유효한 이메일을 입력하세요.');
-      if(pw.length < 6) errors.push('비밀번호는 최소 6자 이상입니다.');
-      if(pw !== pw2) errors.push('비밀번호가 일치하지 않습니다.');
-      if(!agree) errors.push('이용약관에 동의해야 합니다.');
-
-      if(errors.length){
-        e.preventDefault();
-        flash.innerHTML = '<div class="alert">' + errors.map(x => '<div>'+x+'</div>').join('') + '</div>';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return false;
-      }
-
-      // Flask 라우트로 리디렉션 (url_for 사용)
-      e.preventDefault();
-      flash.innerHTML = '<div class="alert">가입이 완료되었습니다. 로그인 페이지로 이동합니다...</div>';
-      setTimeout(() => { 
-        window.location.href = "{{ url_for('login') }}?msg=" + encodeURIComponent('가입이 완료되었습니다. 로그인해주세요.'); 
-      }, 1400);
-    });
+    function togglePassword(id){const i=document.getElementById(id);i.setAttribute('type',i.getAttribute('type')==='password'?'text':'password')}
+    document.getElementById('registerForm').addEventListener('submit',function(ev){const f=document.getElementById('flash');f.innerHTML='';const em=document.getElementById('email').value.trim();const u=document.getElementById('username').value.trim();const p=document.getElementById('password').value;const p2=document.getElementById('password2').value;const err=[];if(!em||!em.includes('@'))err.push('올바른 이메일 주소를 입력하세요.');if(u.length<3)err.push('아이디는 최소 3자 이상입니다.');if(p.length<6)err.push('비밀번호는 최소 6자 이상입니다.');if(p!==p2)err.push('비밀번호가 일치하지 않습니다.');if(err.length){ev.preventDefault();f.innerHTML='<div class="alert">'+err.map(x=>'<div>'+x+'</div>').join('')+'</div>';window.scrollTo({top:0,behavior:'smooth'});return false}});
     </script>
 </body>
 </html>

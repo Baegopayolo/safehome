@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>세이프홈 - 리뷰</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/reviews.css') }}">
+</head>
+<body>
+    {% include '_navbar.html' %}
+    {% include '_left_sidebar.html' %}
+    {% include '_right_sidebar.html' %}
+
+    <div class="reviews-container">
+        <div class="page-header">
+            <h1>사용자 리뷰</h1>
+            <p>실제로 세이프홈을 사용해보신 분들의 솔직한 후기</p>
+        </div>
+
+        <div class="filters-section">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label>필터:</label>
+                    <button class="filter-btn active" data-filter="all" onclick="filterReviews('all')">전체</button>
+                    <button class="filter-btn" data-filter="my" onclick="filterReviews('my')">내 리뷰</button>
+                </div>
+                <div class="filter-group">
+                    <label>지역:</label>
+                    <input type="text" id="region-filter" placeholder="지역명 검색" onkeyup="filterByRegion()" style="width: 200px;">
+                </div>
+                <div class="filter-group">
+                    <label>평점:</label>
+                    <select id="rating-filter" onchange="filterByRating()">
+                        <option value="all">전체</option>
+                        <option value="5">5점</option>
+                        <option value="4">4점 이상</option>
+                        <option value="3">3점 이상</option>
+                    </select>
+                </div>
+                <div class="filter-buttons">
+                    <button class="write-review-btn" onclick="openReviewModal()">리뷰 작성하기</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="reviews-container" class="loading">리뷰를 불러오는 중...</div>
+    </div>
+
+    <!-- 리뷰 작성/수정 모달 -->
+    <div id="review-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 500px; margin: 50px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;" id="modal-title">리뷰 작성</h3>
+                <button onclick="closeReviewModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+            </div>
+            <form id="review-form">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">지역명</label>
+                    <input type="text" id="review-region" placeholder="예: 강남구 역삼동" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">평점</label>
+                    <div class="rating-stars" id="rating-stars" style="display: flex; gap: 8px; font-size: 32px;">
+                        <span class="star" data-rating="1" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="2" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="3" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="4" style="cursor: pointer; color: #ddd;">★</span>
+                        <span class="star" data-rating="5" style="cursor: pointer; color: #ddd;">★</span>
+                    </div>
+                    <input type="hidden" id="review-rating" value="0" required>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">리뷰 내용</label>
+                    <textarea id="review-content" placeholder="이 지역에 대한 경험을 공유해주세요..." required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; min-height: 120px; resize: vertical;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="closeReviewModal()" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">취소</button>
+                    <button type="submit" style="padding: 10px 20px; background: #1565c0; color: white; border: none; border-radius: 6px; cursor: pointer;">리뷰 등록</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/reviews.js') }}"></script>
+    {% include '_footer.html' %}
+</body>
+</html>

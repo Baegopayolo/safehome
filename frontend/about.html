@@ -2,111 +2,73 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 문의하기</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- <div style="text-align:center; margin-bottom:24px;">
-        <a href="{{ url_for('mypage') }}" class="btn">마이페이지</a>
-        </div>  -->
     <style>
-      body { background: #f7f8fa; }
-      .container { max-width: 440px; margin: 48px auto; padding: 0 16px; }
-      .contact-card {
-        background: #fff;
-        border-radius: 18px;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.09);
-        padding: 32px 28px 24px 28px;
-        margin-top: 24px;
-      }
-      h2 {
-        text-align: center;
-        font-size: 2rem;
-        margin-bottom: 12px;
-        color: #1976d2; /* 파란색 포인트 */
-        font-weight: 700;
-        letter-spacing: -1px;
-      }
-      .form-group { margin-bottom: 18px; }
-      label { display: block; margin-bottom: 7px; font-weight: 500; color: #444; }
-      input[type="text"], input[type="email"], textarea {
-        width: 100%;
-        padding: 12px 14px;
-        border: 1.5px solid #e0e0e0;
-        border-radius: 8px;
-        font-size: 1rem;
-        background: #fafbfc;
-        transition: border-color 0.2s, background 0.2s;
-        box-sizing: border-box;
-      }
-      input:focus, textarea:focus {
-        border-color: #1976d2; /* 파란색 포커스 */
-        outline: none;
-        background: #fff;
-      }
-      textarea { resize: vertical; min-height: 100px; font-family: inherit; }
-      .btn {
-        width: 100%;
-        background: linear-gradient(90deg, #1976d2 60%, #64b5f6 100%); /* 파란 그라데이션 */
-        color: #fff;
-        font-weight: 600;
-        border: none;
-        border-radius: 8px;
-        padding: 12px 0;
-        font-size: 1.08rem;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(25,118,210,0.10);
-        transition: background 0.2s, transform 0.06s;
-        margin-top: 8px;
-      }
-      .btn:hover {
-        background: linear-gradient(90deg, #1565c0 60%, #64b5f6 100%); /* 호버 시 더 진한 파랑 */
-      }
-      .flash-messages { margin-top: 18px; text-align: center; }
-      .alert {
-        background: #e3f2fd;          /* 연한 파랑 배경 */
-        color: #0d47a1;               /* 진한 파랑 텍스트 */
-        border-radius: 8px;
-        padding: 12px 14px;
-        font-size: 1rem;
-        box-shadow: 0 2px 8px rgba(25,118,210,0.06);
-        margin-top: 8px;
-        display: inline-block;
-      }
-      @media (max-width: 600px) {
-        .container { padding: 0 4px; }
-        .contact-card { padding: 18px 8px 16px 8px; }
-      }
+        body{background:#fff;min-height:100vh;padding:0;margin:0}
+        .contact-wrapper{padding:40px 20px}
+        .contact-container{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+        .customer-center,.contact-form-card{background:white;padding:48px 40px;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+        .customer-center h2{font-size:32px;font-weight:700;color:#1f2937;margin-bottom:8px}
+        .customer-center .subtitle{font-size:16px;color:#6b7280;margin-bottom:40px}
+        .contact-info{margin-bottom:32px}
+        .contact-info-item{display:flex;align-items:flex-start;gap:12px;margin-bottom:20px}
+        .contact-info-item strong{min-width:80px;font-weight:600;color:#374151;font-size:14px}
+        .contact-info-item span{color:#6b7280;font-size:14px}
+        .faq-btn{width:100%;height:48px;background:#1565c0;color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.2s}
+        .faq-btn:hover{background:#0d4fa3;transform:translateY(-2px);box-shadow:0 8px 20px rgba(21,101,192,0.3)}
+        .contact-form-card h2{font-size:28px;font-weight:700;color:#1f2937;margin-bottom:32px}
+        .form-group{margin-bottom:24px}
+        .form-group label{display:block;font-weight:600;color:#374151;margin-bottom:8px;font-size:14px}
+        .form-group input,.form-group textarea{width:100%;padding:14px 16px;border:2px solid #e5e7eb;border-radius:12px;font-size:15px;transition:border-color 0.2s;font-family:inherit;box-sizing:border-box}
+        .form-group input:focus,.form-group textarea:focus{outline:none;border-color:#1565c0}
+        .form-group textarea{resize:vertical;min-height:120px}
+        .form-group input::placeholder,.form-group textarea::placeholder{color:#9ca3af}
+        .submit-btn{width:100%;height:52px;background:#1565c0;color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.2s;margin-top:8px}
+        .submit-btn:hover{background:#0d4fa3;transform:translateY(-2px);box-shadow:0 8px 20px rgba(21,101,192,0.3)}
+        .alert{padding:14px 16px;border-radius:10px;margin-top:16px;font-size:14px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+        @media (max-width:968px){.contact-container{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
     {% include '_navbar.html' %}
-    <main class="container">                      
-        <div class="contact-card">
-            <h2>문의하기</h2>
-            <form id="contactForm">
-                <div class="form-group">
-                    <label for="name">이름</label>
-                    <input id="name" name="name" type="text" required>
+    {% include '_left_sidebar.html' %}
+    {% include '_right_sidebar.html' %}
+    <div class="contact-wrapper">
+        <div class="contact-container">
+            <div class="customer-center">
+                <h2>고객센터</h2>
+                <p class="subtitle">무엇을 도와드릴까요?</p>
+                <div class="contact-info">
+                    <div class="contact-info-item"><strong>이메일</strong><span>safehome@mail.com</span></div>
+                    <div class="contact-info-item"><strong>전화번호</strong><span>012-3456-7890</span></div>
+                    <div class="contact-info-item"><strong>주소</strong><span>서울특별시 강남구 00로 123</span></div>
                 </div>
-                <div class="form-group">
-                    <label for="email">이메일</label>
-                    <input id="email" name="email" type="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="message">문의 내용</label>
-                    <textarea id="message" name="message" rows="5" required></textarea>
-                </div>
-                <button type="submit" class="btn">문의 보내기</button>
-            </form>
-            <section id="flash" class="flash-messages" aria-live="polite"></section>
+                <a href="{{ url_for('faq_page') }}" class="faq-btn" style="text-decoration:none;display:block;text-align:center;line-height:48px">자주 묻는 질문</a>
+            </div>
+            <div class="contact-form-card">
+                <h2>문의하기</h2>
+                <form id="contactForm">
+                    <div class="form-group">
+                        <label for="name">이름</label>
+                        <input id="name" name="name" type="text" required placeholder="이름을 입력하세요.">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">이메일</label>
+                        <input id="email" name="email" type="email" required placeholder="이메일을 입력하세요.">
+                    </div>
+                    <div class="form-group">
+                        <label for="message">문의사항</label>
+                        <textarea id="message" name="message" rows="5" required placeholder="문의 내용을 입력하세요."></textarea>
+                    </div>
+                    <button type="submit" class="submit-btn">보내기</button>
+                </form>
+                <section id="flash" class="flash-messages" aria-live="polite"></section>
+            </div>
         </div>
-    </main>
-    <script>
-    document.getElementById('contactForm').addEventListener('submit', function(e){
-        e.preventDefault();
-        document.getElementById('flash').innerHTML =
-        '<div class="alert">문의가 정상적으로 접수되었습니다.<br>빠른 시일 내에 답변드리겠습니다.</div>';
-        this.reset();
-    });
-    </script>
+    </div>
+    <script>document.getElementById('contactForm').addEventListener('submit',function(e){e.preventDefault();document.getElementById('flash').innerHTML='<div class="alert">문의가 정상적으로 접수되었습니다.<br>빠른 시일 내에 답변드리겠습니다.</div>';this.reset()});</script>
+    {% include '_footer.html' %}
 </body>
 </html>

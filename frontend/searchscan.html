@@ -2,207 +2,173 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>세이프홈 - 지역 매물 분석 검색</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>세이프홈 - 지역 매물 분석</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/searchscan.css') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
+    {% include '_left_sidebar.html' %}
+    {% include '_right_sidebar.html' %}
     <main>
-        <h2 style="text-align: center; margin-top: 20px;">지역 매물 분석 검색</h2>
-        <hr style="margin-bottom: 20px;">
-
+        <h2>지역 매물 분석</h2>
         <div id="search-bar">
             <span class="search-input-wrap">
-                <input type="text" id="region-input" placeholder="분석할 동 이름(예: 화곡동)을 입력하세요">
+                <input type="text" id="region-input" placeholder="분석할 동 이름(예: 화곡동)을 입력하세요" list="recent-searches-list">
+                <datalist id="recent-searches-list"></datalist>
                 <button type="button" class="clear-btn-in" id="clear-btn-in" title="지우기">&#10006;</button>
             </span>
             <button id="search-btn" class="btn btn-search" onclick="searchRegion()">검색</button>
+            <button id="advanced-search-btn" class="btn btn-outline" onclick="toggleAdvancedSearch()">고급 검색</button>
         </div>
-        <div id="search-result"></div>
-    </main>
-    <script>
-function searchRegion() {
-    const region = document.getElementById('region-input').value.trim();
-    const resultDiv = document.getElementById('search-result');
-    if (!region) {
-        resultDiv.innerHTML = '<p style="color:#d9534f">지역명을 입력하세요.</p>';
-        return;
-    }
-
-    // 로딩 상태
-    resultDiv.innerHTML = `
-        <div class="loading">
-            <span class="spinner"></span>
-            <span>분석 중입니다...</span>
-        </div>
-    `;
-
-    fetch(`http://127.0.0.1:5000/analyze?region=${encodeURIComponent(region)}`)
-        .then(res => res.json())
-        .then(data => {
-            const props = Array.isArray(data.properties) ? data.properties : [];
-            if (props.length === 0) {
-                resultDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-emoji">🔍</div>
-                        <p>해당 지역의 매물 데이터가 없습니다.</p>
-                        <small>지역명을 다시 확인하거나 다른 키워드로 검색해 보세요.</small>
+        <div id="advanced-search-panel" class="advanced-search-panel hidden">
+            <div class="advanced-search-content">
+                <h3>고급 검색 옵션</h3>
+                <div class="search-filters">
+                    <div class="filter-group">
+                        <label for="min-price">최소 가격 (억원)</label>
+                        <input type="number" id="min-price" placeholder="예: 1">
                     </div>
-                `;
-                return;
-            }
-            renderResults(region, props, resultDiv);
-        })
-        .catch(() => {
-            resultDiv.innerHTML = `<p style='color:#d9534f'>서버 오류 또는 네트워크 오류가 발생했습니다.</p>`;
-        });
-}
-
-function renderResults(region, props, container) {
-    let properties = [...props];
-
-    const headerHTML = (count) => `
-        <div class="result-head">
-            <h2>"${region}" 매물 분석 결과 <span class="badge badge-neutral" id="result-count">${count}</span></h2>
-            <div class="controls">
-                <label for="sort-select">정렬</label>
-                <select id="sort-select" class="ctrl">
-                    <option value="default">기본순</option>
-                    <option value="warnDesc">위험요소 많음순</option>
-                    <option value="warnAsc">위험요소 적음순</option>
-                </select>
-                <label for="filter-input">필터</label>
-                <input id="filter-input" class="ctrl" placeholder="경고 키워드 또는 매물명">
-                <button id="expand-all" class="link-btn">전체 펼치기</button>
-                <button id="collapse-all" class="link-btn">전체 접기</button>
+                    <div class="filter-group">
+                        <label for="max-price">최대 가격 (억원)</label>
+                        <input type="number" id="max-price" placeholder="예: 5">
+                    </div>
+                    <div class="filter-group">
+                        <label for="property-type">건물 유형</label>
+                        <select id="property-type">
+                            <option value="">전체</option>
+                            <option value="아파트">아파트</option>
+                            <option value="빌라">빌라</option>
+                            <option value="오피스텔">오피스텔</option>
+                            <option value="단독주택">단독주택</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="risk-level">위험도</label>
+                        <select id="risk-level">
+                            <option value="">전체</option>
+                            <option value="low">낮음 (0-40점)</option>
+                            <option value="medium">보통 (40-60점)</option>
+                            <option value="high">높음 (60점 이상)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="advanced-search-actions">
+                    <button class="btn btn-primary" onclick="advancedSearch()">고급 검색 실행</button>
+                    <button class="btn btn-outline" onclick="resetAdvancedSearch()">초기화</button>
+                </div>
             </div>
         </div>
-    `;
-
-    const buildCards = (list) => list.map((prop, idx) => {
-        const name = prop.name || `매물 #${idx+1}`;
-        const warns = Array.isArray(prop.warnings) ? prop.warnings : [];
-        const checklist = Array.isArray(prop.checklist) ? prop.checklist : [];
-        const warnCount = warns.length;
-
-        const risk =
-            warnCount >= 5 ? 'high' :
-            warnCount >= 2 ? 'med' : 'low';
-
-        const warnItems = warns.length
-            ? warns.map(w => `<li>⚠️ ${w}</li>`).join('')
-            : `<li>✅ 특이사항 없음</li>`;
-
-        const checklistItems = checklist.length
-            ? checklist.map(c => `<li>☑ ${c}</li>`).join('')
-            : `<li>체크리스트 항목이 없습니다.</li>`;
-
-        return `
-            <div class="property-item" data-warnings="${warns.join(' ').toLowerCase()}" data-name="${(name||'').toLowerCase()}">
-                <div class="card-head">
-                    <h3>${name}</h3>
-                    <span class="badge ${risk === 'high' ? 'badge-danger' : risk === 'med' ? 'badge-warn' : 'badge-success'}">
-                        경고 ${warnCount}
-                    </span>
+        <section class="real-transactions-section">
+            <div class="real-transactions-header">
+                <div class="header-left">
+                <h3>최근 실거래 데이터</h3>
+                <small>국토교통부 실거래 공개시스템 기준 (월별 업데이트)</small>
                 </div>
-                <div class="warnings">
-                    <ul class="warn-list">${warnItems}</ul>
+                <div class="header-right">
+                    <label for="month-select" class="month-select-label">조회 기간:</label>
+                    <select id="month-select" class="month-select" onchange="changeMonthRange()">
+                        <option value="1" selected>1개월</option>
+                        <option value="2">2개월</option>
+                        <option value="3">3개월</option>
+                    </select>
                 </div>
-                <h4 class="check-toggle">[안전 계약 체크리스트] ▾</h4>
-                <ul class="checklist collapsed">
-                    ${checklistItems}
-                </ul>
             </div>
-        `;
-    }).join('');
-
-    container.innerHTML = `
-        ${headerHTML(properties.length)}
-        <div class="property-list">
-            ${buildCards(properties)}
+            <div id="real-transactions-container">
+                <div class="transaction-empty">지역을 검색하면 최신 실거래 정보를 보여드려요.</div>
+            </div>
+        </section>
+        <div id="search-result"></div>
+        <div id="property-comparison" class="property-comparison hidden">
+            <div class="comparison-header">
+                <div class="comparison-title">
+                    <span>📊 매물 비교</span>
+                <span class="comparison-count" id="comparison-count">0</span>
+                </div>
+                <button class="comparison-close-btn" onclick="clearComparison()" title="모두 제거">×</button>
+            </div>
+            <div id="comparison-list" class="comparison-list"></div>
+            <div class="comparison-actions">
+                <button class="comparison-btn compare-btn" onclick="showComparison()" disabled>비교하기</button>
+            </div>
         </div>
-    `;
-
-    const applyFilterAndSort = () => {
-        const sortVal = document.getElementById('sort-select').value;
-        const q = document.getElementById('filter-input').value.trim().toLowerCase();
-
-        let list = [...properties];
-
-        // 정렬
-        if (sortVal === 'warnDesc') {
-            list.sort((a, b) => (b.warnings?.length || 0) - (a.warnings?.length || 0));
-        } else if (sortVal === 'warnAsc') {
-            list.sort((a, b) => (a.warnings?.length || 0) - (b.warnings?.length || 0));
-        }
-
-        // 필터
-        if (q) {
-            list = list.filter(p =>
-                (p.warnings || []).join(' ').toLowerCase().includes(q) ||
-                (p.name || '').toLowerCase().includes(q)
-            );
-        }
-
-        document.querySelector('.property-list').innerHTML = buildCards(list);
-        attachCardHandlers();
-        document.getElementById('result-count').textContent = list.length;
-    };
-
-    const attachCardHandlers = () => {
-        document.querySelectorAll('.check-toggle').forEach(h => {
-            h.addEventListener('click', () => {
-                let next = h.nextElementSibling;
-                if (!next || !next.classList || !next.classList.contains('checklist')) {
-                    const container = h.closest('.property-item');
-                    next = container ? container.querySelector('.checklist') : null;
-                }
-                if (!next) return;
-                next.classList.toggle('collapsed');
-                h.textContent = next.classList.contains('collapsed') ? '[안전 계약 체크리스트] ▾' : '[안전 계약 체크리스트] ▴';
-            });
-        });
-    };
-
-    // 초기 핸들러
-    attachCardHandlers();
-
-    // 컨트롤 이벤트
-    document.getElementById('sort-select').addEventListener('change', applyFilterAndSort);
-    document.getElementById('filter-input').addEventListener('input', applyFilterAndSort);
-
-    document.getElementById('expand-all').addEventListener('click', () => {
-        document.querySelectorAll('.property-item').forEach(item => {
-            const list = item.querySelector('.checklist');
-            const toggle = item.querySelector('.check-toggle');
-            if (list && list.classList.contains('collapsed')) {
-                list.classList.remove('collapsed');
-                if (toggle) toggle.textContent = '[안전 계약 체크리스트] ▴';
-            }
-        });
-    });
-    document.getElementById('collapse-all').addEventListener('click', () => {
-        document.querySelectorAll('.property-item').forEach(item => {
-            const list = item.querySelector('.checklist');
-            const toggle = item.querySelector('.check-toggle');
-            if (list && !list.classList.contains('collapsed')) {
-                list.classList.add('collapsed');
-                if (toggle) toggle.textContent = '[안전 계약 체크리스트] ▾';
-            }
-        });
-    });
-}
-
-// x버튼 클릭 시 input 초기화
-document.getElementById('clear-btn-in').onclick = function() {
-    const input = document.getElementById('region-input');
-    input.value = '';
-    input.focus();
-};
-// 엔터키로도 검색 가능
-document.getElementById('region-input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') searchRegion();
-});
-</script>
+        <div id="review-modal" class="social-modal hidden">
+            <div class="modal-form">
+                <div class="form-header">
+                    <h3>리뷰 작성</h3>
+                    <button onclick="closeReviewModal()" class="modal-close">×</button>
+                </div>
+                <div class="form-content">
+                    <form id="review-form">
+                        <div class="form-group">
+                            <label>매물명</label>
+                            <input type="text" id="review-property-name" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>평점</label>
+                            <div class="rating-stars" id="rating-stars">
+                                <span class="star" data-rating="1">★</span>
+                                <span class="star" data-rating="2">★</span>
+                                <span class="star" data-rating="3">★</span>
+                                <span class="star" data-rating="4">★</span>
+                                <span class="star" data-rating="5">★</span>
+                            </div>
+                            <input type="hidden" id="review-rating" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="review-content">리뷰 내용</label>
+                            <textarea id="review-content" placeholder="이 매물에 대한 경험을 공유해주세요..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="closeReviewModal()">취소</button>
+                            <button type="submit" class="btn-submit">리뷰 등록</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div id="report-modal" class="social-modal hidden">
+            <div class="modal-form">
+                <div class="form-header">
+                    <h3>🚨 매물 신고</h3>
+                    <button onclick="closeReportModal()" class="modal-close">×</button>
+                </div>
+                <div class="form-content">
+                    <form id="report-form">
+                        <div class="form-group">
+                            <label>매물명</label>
+                            <input type="text" id="report-property-name" readonly style="background: #f8f9fa;">
+                        </div>
+                        <div class="form-group">
+                            <label for="report-address">매물 주소</label>
+                            <input type="text" id="report-address" placeholder="정확한 주소를 입력해주세요 (자동 입력됨)">
+                            <small style="color: #6c757d; font-size: 12px; margin-top: 4px; display: block;">주소가 자동으로 입력되지 않은 경우 직접 입력해주세요.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="report-type">신고 유형 <span style="color: #dc3545;">*</span></label>
+                            <select id="report-type" required>
+                                <option value="">선택하세요</option>
+                                <option value="suspicious">의심스러운 매물</option>
+                                <option value="scam">전세사기 의심</option>
+                                <option value="fake">가짜 매물</option>
+                                <option value="other">기타</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="report-description">신고 사유 <span style="color: #dc3545;">*</span></label>
+                            <textarea id="report-description" placeholder="신고 사유를 자세히 설명해주세요. 구체적인 내용일수록 도움이 됩니다." required rows="5"></textarea>
+                            <small style="color: #6c757d; font-size: 12px; margin-top: 4px; display: block;">신고하신 내용은 검토 후 조치됩니다. 마이페이지에서 신고 내역을 확인할 수 있습니다.</small>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="closeReportModal()">취소</button>
+                            <button type="submit" class="btn-submit">신고하기</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="{{ url_for('static', filename='js/searchscan.js') }}"></script>
+    {% include '_footer.html' %}
 </body>
 </html>

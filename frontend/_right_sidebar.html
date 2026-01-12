@@ -1,0 +1,101 @@
+<div id="right-sidebar" class="sidebar right-sidebar">
+    <div class="sidebar-header">
+        <h3>알림 & 도움말</h3>
+        <button class="sidebar-toggle" onclick="toggleRightSidebar()">×</button>
+    </div>
+    <div class="sidebar-content">
+        <div class="notifications">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h4 style="margin:0">실시간 알림</h4>
+                <button onclick="readAllNotifications()" style="background:none;border:none;color:#1565c0;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='none'">모두 읽음</button>
+            </div>
+            <div id="notifications-list"><div class="loading-text">로딩 중...</div></div>
+        </div>
+        <div class="stats-widget">
+            <h4>오늘의 통계</h4>
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-searches">-</div>
+                    <div class="stat-label">총 검색</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="high-risk-count">-</div>
+                    <div class="stat-label">위험 지역</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-reports">-</div>
+                    <div class="stat-label">신고 건수</div>
+                </div>
+            </div>
+        </div>
+        <div class="help-section">
+            <h4>도움말</h4>
+            <div class="help-items">
+                <div class="help-item" onclick="showTooltip('search-help')"><span class="help-icon">🔍</span><span>검색 방법</span></div>
+                <div class="help-item" onclick="showTooltip('map-help')"><span class="help-icon">🗺️</span><span>지도 사용법</span></div>
+                <div class="help-item" onclick="showTooltip('safety-help')"><span class="help-icon">🛡️</span><span>안전 수칙</span></div>
+                <div class="help-item" onclick="showTooltip('report-help')"><span class="help-icon">📢</span><span>신고 방법</span></div>
+            </div>
+        </div>
+        <div class="related-links">
+            <h4>관련 링크</h4>
+            <div class="link-items">
+                <a href="https://www.114.co.kr/" target="_blank">114 전화번호</a>
+                <a href="https://www.ftc.go.kr/" target="_blank">공정거래위원회</a>
+                <a href="https://www.kbstar.com/" target="_blank">KB부동산</a>
+                <a href="https://www.zigbang.com/" target="_blank">직방</a>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="tooltip-modal" class="tooltip-modal hidden">
+    <div class="tooltip-content">
+        <button class="tooltip-close" onclick="hideTooltip()">×</button>
+        <div id="tooltip-text"></div>
+    </div>
+</div>
+<style>
+.right-sidebar{position:fixed;right:0;top:70px;width:300px;height:calc(100vh - 70px);background:white;box-shadow:-2px 0 8px rgba(0,0,0,0.1);z-index:999;overflow-y:auto;transition:transform 0.3s ease;transform:translateX(100%)}
+.right-sidebar.active{transform:translateX(0)}
+.sidebar-header{padding:20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;background:#f8f9fa}
+.sidebar-header h3{margin:0;font-size:16px;color:#333}
+.sidebar-toggle{background:none;border:none;font-size:20px;cursor:pointer;color:#666}
+.sidebar-content{padding:20px}
+.sidebar-content h4{margin:0 0 12px 0;font-size:14px;color:#555;font-weight:600}
+.sidebar-content>div{margin-bottom:24px}
+.notification-item{padding:12px;margin:8px 0;border-radius:6px;border-left:4px solid #ddd;cursor:pointer;transition:all 0.2s}
+.notification-item.unread{background:#f8f9fa;border-left-color:var(--brand-600)}
+.notification-item.warning{border-left-color:#ffc107}
+.notification-item.danger{border-left-color:#dc3545}
+.notification-item.success{border-left-color:#28a745}
+.notification-title{font-weight:600;font-size:14px;margin-bottom:4px}
+.notification-message{font-size:13px;color:#666;margin-bottom:4px}
+.notification-time{font-size:12px;color:#999}
+.stat-cards{display:grid;grid-template-columns:1fr;gap:12px}
+.stat-card{background:#f8f9fa;padding:16px;border-radius:8px;text-align:center;border:1px solid #e9ecef}
+.stat-number{font-size:24px;font-weight:700;color:var(--brand-600);margin-bottom:4px}
+.stat-label{font-size:12px;color:#666}
+.help-items{display:flex;flex-direction:column;gap:8px}
+.help-item{display:flex;align-items:center;gap:12px;padding:12px;background:#f8f9fa;border-radius:6px;cursor:pointer;transition:background 0.2s}
+.help-item:hover{background:#e9ecef}
+.help-icon{font-size:18px}
+.link-items{display:flex;flex-direction:column;gap:8px}
+.link-items a{display:block;padding:8px 12px;color:#555;text-decoration:none;border-radius:4px;transition:all 0.2s;font-size:14px}
+.link-items a:hover{background:#f8f9fa;color:var(--brand-600)}
+.tooltip-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center}
+.tooltip-modal.hidden{display:none}
+.tooltip-content{background:white;padding:24px;border-radius:8px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;position:relative}
+.tooltip-close{position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:#666}
+.loading-text{color:#666;font-size:14px;text-align:center;padding:20px}
+</style>
+<script>
+function toggleRightSidebar(){const s=document.getElementById('right-sidebar')||document.querySelector('.right-sidebar');if(s){const a=s.classList.contains('active');s.classList.toggle('active');if(s.classList.contains('active')){s.style.transform='translateX(0)'}else{s.style.transform='translateX(100%)'}if(!a&&s.classList.contains('active')){if(typeof loadNotifications==='function')loadNotifications();if(typeof loadStats==='function')loadStats()}}}
+function showTooltip(t){const m=document.getElementById('tooltip-modal');const txt=document.getElementById('tooltip-text');const tips={'search-help':'<h3>🔍 검색 방법</h3><p><strong>기본 검색:</strong> 지역명(예: 화곡동)을 입력하고 검색 버튼을 클릭하세요.</p><p><strong>고급 검색:</strong> 가격대, 건물 유형, 위험도 등을 설정하여 더 정확한 검색이 가능합니다.</p><p><strong>즐겨찾기:</strong> 자주 검색하는 지역을 즐겨찾기에 추가하여 빠르게 접근할 수 있습니다.</p>','map-help':'<h3>🗺️ 지도 사용법</h3><p><strong>색상 의미:</strong> 빨간색(위험), 노란색(주의), 초록색(안전)</p><p><strong>원 클릭:</strong> 지역을 클릭하면 해당 지역의 상세 정보를 볼 수 있습니다.</p><p><strong>필터링:</strong> 사이드 패널에서 위험도별로 필터링할 수 있습니다.</p><p><strong>검색:</strong> 상단 검색창에서 특정 지역을 찾아 이동할 수 있습니다.</p>','safety-help':'<h3>🛡️ 안전 수칙</h3><p><strong>계약 전 필수 확인:</strong></p><ul><li>등기부등본 확인</li><li>건축물대장 확인</li><li>임대인 신분증 확인</li><li>선순위 세입자 확인</li><li>집주인 세금 체납 조회</li></ul><p><strong>주의사항:</strong> 시세보다 현저히 낮은 가격, 급한 계약 요구, 서류 제시 거부 등은 위험 신호입니다.</p>','report-help':'<h3>📢 신고 방법</h3><p><strong>신고 가능한 경우:</strong></p><ul><li>의심스러운 매물</li><li>전세사기 의심</li><li>가짜 매물</li><li>부정한 중개업소</li></ul><p><strong>신고 절차:</strong> 매물 분석 페이지에서 신고 버튼을 클릭하고 상세 내용을 작성해주세요.</p>'};txt.innerHTML=tips[t]||'<p>도움말 정보가 없습니다.</p>';m.classList.remove('hidden')}
+function hideTooltip(){document.getElementById('tooltip-modal').classList.add('hidden')}
+function loadNotifications(){fetch('/api/notifications').then(r=>{if(!r.ok)throw new Error(`HTTP error! status: ${r.status}`);return r.json()}).then(d=>{const c=document.getElementById('notifications-list');if(!c)return;if(!d||d.length===0){c.innerHTML='<div class="loading-text">새로운 알림이 없습니다.</div>';return}let u=0;c.innerHTML=d.map(n=>{const uc=n.user_id!==null&&n.user_id!==undefined;if(uc)u++;return`<div class="notification-item ${n.is_read?'':'unread'} ${n.type||'info'}" onclick="markAsRead(${n.id})"><div class="notification-title">${n.title||'알림'}</div><div class="notification-message">${n.message||''}</div><div class="notification-time">${n.created_at||''}</div></div>`}).join('');window.userNotificationCount=u}).catch(e=>{const c=document.getElementById('notifications-list');if(c)c.innerHTML='<div class="loading-text">알림을 불러올 수 없습니다.</div>'})}
+function markAsRead(n){fetch('/api/notifications',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:n})}).then(r=>r.json()).then(d=>{loadNotifications()})}
+function loadStats(){fetch('/api/stats').then(r=>r.json()).then(d=>{document.getElementById('total-searches').textContent=d.total_searches||0;document.getElementById('high-risk-count').textContent=d.high_risk_regions||0;document.getElementById('total-reports').textContent=d.total_reports||0}).catch(e=>console.error('통계 로드 실패:',e))}
+function readAllNotifications(){fetch('/api/notifications/read-all',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin'}).then(r=>{if(!r.ok){if(r.status===401){window.location.href='/login';return}throw new Error(`HTTP error! status: ${r.status}`)}return r.json()}).then(d=>{if(d&&d.status==='success'){loadNotifications()}else if(d){alert(d.message||'읽음 처리에 실패했습니다.')}}).catch(e=>{console.error('Error:',e);alert('읽음 처리 중 오류가 발생했습니다.')})}
+document.addEventListener('DOMContentLoaded',function(){const s=document.getElementById('right-sidebar')||document.querySelector('.right-sidebar');if(s){s.classList.remove('active');s.style.transform='translateX(100%)'}});
+document.addEventListener('click',e=>{const m=document.getElementById('tooltip-modal');if(e.target===m)hideTooltip()});
+</script>

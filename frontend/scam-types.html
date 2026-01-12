@@ -4,24 +4,33 @@
   <meta charset="UTF-8">
   <title>세이프홈 - 전세사기 유형</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .card{box-shadow:none;border:1px solid #1565c0}
+    .callout{box-shadow:none;border:1px solid #1565c0;border-left:6px solid #1565c0}
+    .icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f3f4f6;font-size:24px;margin-right:12px;flex-shrink:0}
+    .card-header{display:flex;gap:12px;align-items:center}
+    .page-wrap,.content,main{position:relative;z-index:1}
+    .meta{display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:8px}
+    .badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+  </style>
 </head>
 <body>
   {% include '_navbar.html' %}
-
-  <!-- 히어로 -->
+  {% include '_left_sidebar.html' %}
+  {% include '_right_sidebar.html' %}
   <section class="hero-banner">
     <div class="hero-inner">
-      <h1>전세사기, 미리 알면 막을 수 있습니다</h1>
-      <p>대표 유형과 예방법을 한눈에. 계약 전 필수 점검 목록까지 확인하세요.</p>
-      <div class="hero-actions">
-        <a class="btn" href="{{ url_for('self_check_page') }}">자가진단 체크리스트</a>
-        <a class="btn btn-outline" href="{{ url_for('faq_page') }}">자주 묻는 질문</a>
+      <div style="text-align:center">
+        <h1>전세사기, 미리 알면 막을 수 있습니다</h1>
+        <p>대표 유형과 예방법을 한눈에. 계약 전 필수 점검 목록까지 확인하세요.</p>
+        <div class="hero-actions">
+          <a class="btn" style="border:1px solid white;background-color:#1565c0;color:white" href="{{ url_for('selfcheck_page') }}">자가진단 체크리스트</a>
+          <a class="btn btn-outline" href="{{ url_for('faq_page') }}">자주 묻는 질문</a>
+        </div>
       </div>
     </div>
   </section>
-
   <main class="page-wrap container-wide">
-    <!-- 좌측 목차 -->
     <aside class="toc">
       <nav>
         <div class="toc-title">목차</div>
@@ -30,13 +39,10 @@
         <a href="#tips" class="toc-link">예방 팁</a>
       </nav>
     </aside>
-
-    <!-- 본문 -->
     <section class="content">
       <section id="types">
         <h2>대표적인 전세사기 유형</h2>
         <div class="card-grid">
-          <!-- 깡통전세 -->
           <article class="card">
             <header class="card-header">
               <div class="icon">🏚️</div>
@@ -48,9 +54,7 @@
                 </div>
               </div>
             </header>
-            <div class="card-body">
-              매매가와 전세가가 비슷해 집값 하락·경매 시 보증금 회수가 어려운 유형.
-            </div>
+            <div class="card-body">매매가와 전세가가 비슷해 집값 하락·경매 시 보증금 회수가 어려운 유형.</div>
             <ul class="checklist">
               <li>전세가율 70% 이하 권장</li>
               <li>실거래가·시세 반드시 비교</li>
@@ -62,8 +66,6 @@
               <p><strong>예방:</strong> HUG 전세보증보험 가입 가능 여부 확인, 보증금 분할지급 금지.</p>
             </div>
           </article>
-
-          <!-- 신탁사기 -->
           <article class="card">
             <header class="card-header">
               <div class="icon">🏦</div>
@@ -75,9 +77,7 @@
                 </div>
               </div>
             </header>
-            <div class="card-body">
-              신탁회사 동의 없이 임대계약을 체결해 무효가 되는 유형.
-            </div>
+            <div class="card-body">신탁회사 동의 없이 임대계약을 체결해 무효가 되는 유형.</div>
             <ul class="checklist">
               <li>등기부 '을구'에 신탁 여부 확인</li>
               <li>신탁원부 발급 및 임대 동의서 확인</li>
@@ -89,8 +89,6 @@
               <p><strong>예방:</strong> 신탁사 확인 전화, 임대동의서 원본 확인 후 계약.</p>
             </div>
           </article>
-
-          <!-- 이중계약 -->
           <article class="card">
             <header class="card-header">
               <div class="icon">📄</div>
@@ -102,9 +100,7 @@
                 </div>
               </div>
             </header>
-            <div class="card-body">
-              임차인이 집주인 행세를 하거나, 동일 주택에 중복 임대하는 유형.
-            </div>
+            <div class="card-body">임차인이 집주인 행세를 하거나, 동일 주택에 중복 임대하는 유형.</div>
             <ul class="checklist">
               <li>소유자 신분증·인감증명서 대조</li>
               <li>대리계약 시 위임장·인감증명서 확인</li>
@@ -116,9 +112,7 @@
               <p><strong>예방:</strong> 등기부 소유자 계좌로 송금, 현장 입회·영상기록 보관.</p>
             </div>
           </article>
-
-          <!-- 무등록 중개 -->
-          <article class="card">
+          <article class="card align-center">
             <header class="card-header">
               <div class="icon">🚫</div>
               <div>
@@ -129,9 +123,7 @@
                 </div>
               </div>
             </header>
-            <div class="card-body">
-              중개업 등록 없이 불법으로 중개하여 계약서 위조·허위 정보를 제공하는 유형.
-            </div>
+            <div class="card-body">중개업 등록 없이 불법으로 중개하여 계약서 위조·허위 정보를 제공하는 유형.</div>
             <ul class="checklist">
               <li>중개사무소 등록증 확인</li>
               <li>공인중개사 자격증 원본 대조</li>
@@ -143,9 +135,7 @@
               <p><strong>예방:</strong> 지자체 홈페이지에서 중개업소 등록 여부 확인, 계약서 사본 보관.</p>
             </div>
           </article>
-
-          <!-- 빌라왕 사기 -->
-          <article class="card">
+          <article class="card align-center">
             <header class="card-header">
               <div class="icon">🏢</div>
               <div>
@@ -156,9 +146,7 @@
                 </div>
               </div>
             </header>
-            <div class="card-body">
-              대출로 다세대 주택을 매입 후 고액 전세를 받아 빚만 남기고 파산하는 유형.
-            </div>
+            <div class="card-body">대출로 다세대 주택을 매입 후 고액 전세를 받아 빚만 남기고 파산하는 유형.</div>
             <ul class="checklist">
               <li>건물 전체 임대 현황·선순위 확인</li>
               <li>소유자의 다른 부동산 등기 조회</li>
@@ -171,8 +159,8 @@
             </div>
           </article>
         </div>
+        <div style="margin-bottom:50px"></div>
       </section>
-
       <section id="docs">
         <h2>계약 전 필수 서류 확인법</h2>
         <div class="callout">
@@ -185,8 +173,8 @@
           <h4>건축물대장</h4>
           <p>용도·위반건축물 여부 확인, 불법 증축 시 보증보험 제한 가능.</p>
         </div>
+        <div style="margin-bottom:50px"></div>
       </section>
-
       <section id="tips">
         <h2>추가 예방 팁</h2>
         <ul class="tips">
@@ -194,36 +182,15 @@
           <li>보증금 일부를 잔금일에 지급, 특약에 인도·말소조건 명시</li>
           <li>가능 시 HUG 전세보증보험 가입 가능 여부 사전 확인</li>
         </ul>
-        <div class="cta-row">
-          <a class="btn" href="{{ url_for('self_check_page') }}">자가진단 체크리스트로 점검하기</a>
+        <div class="cta-row" style="margin-top:40px">
+          <a class="btn" href="{{ url_for('selfcheck_page') }}" style="margin-right:20px">자가진단 체크리스트로 점검하기</a>
           <a class="btn btn-outline" href="{{ url_for('about_page') }}">전문가에게 문의하기</a>
         </div>
       </section>
+      <div style="margin-bottom:50px"></div>
     </section>
   </main>
-
-  <script>
-    // 아코디언 토글
-    document.querySelectorAll('.accordion-toggle').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const content = btn.nextElementSibling;
-        content.classList.toggle('open');
-        btn.textContent = content.classList.contains('open') ? '접기' : '사례/예방 체크리스트 열기';
-      });
-    });
-
-    // 스크롤 스파이: 현재 섹션에 해당하는 TOC 링크 활성화
-    const tocLinks = document.querySelectorAll('.toc-link');
-    const sections = Array.from(tocLinks).map(a => document.querySelector(a.getAttribute('href')));
-
-    const onScroll = () => {
-      const y = window.scrollY + 110; // 헤더 높이 보정
-      let activeIdx = 0;
-      sections.forEach((s, i) => { if (s && s.offsetTop <= y) activeIdx = i; });
-      tocLinks.forEach((l, i) => l.classList.toggle('active', i === activeIdx));
-    };
-    document.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-  </script>
+  <script>document.querySelectorAll('.accordion-toggle').forEach(btn=>{btn.addEventListener('click',()=>{const content=btn.nextElementSibling;content.classList.toggle('open');btn.textContent=content.classList.contains('open')?'접기':'사례/예방 체크리스트 열기'})});const tocLinks=document.querySelectorAll('.toc-link');const sections=Array.from(tocLinks).map(a=>document.querySelector(a.getAttribute('href')));const onScroll=()=>{const y=window.scrollY+110;let activeIdx=0;sections.forEach((s,i)=>{if(s&&s.offsetTop<=y)activeIdx=i});tocLinks.forEach((l,i)=>l.classList.toggle('active',i===activeIdx))};document.addEventListener('scroll',onScroll,{passive:true});onScroll();</script>
+  {% include '_footer.html' %}
 </body>
 </html>

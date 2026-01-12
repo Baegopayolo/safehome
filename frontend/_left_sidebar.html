@@ -1,0 +1,72 @@
+<div id="left-sidebar" class="sidebar left-sidebar">
+    <div class="sidebar-header">
+        <h3>빠른 메뉴</h3>
+        <button class="sidebar-toggle" onclick="toggleLeftSidebar()">×</button>
+    </div>
+    <div class="sidebar-content">
+        <div class="quick-search">
+            <h4>빠른 검색</h4>
+            <div class="search-input-group">
+                <input type="text" id="quick-search-input" placeholder="지역명 입력">
+                <button onclick="quickSearch()">검색</button>
+            </div>
+        </div>
+        <div class="recent-searches">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h4 style="margin:0">최근 검색</h4>
+                <button onclick="deleteAllSearchHistoryFromSidebar()" style="background:none;border:none;color:#dc3545;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">모두 삭제</button>
+            </div>
+            <div id="sidebar-recent-searches-list"><div class="loading-text">로딩 중...</div></div>
+        </div>
+        <div class="favorites">
+            <h4>즐겨찾기 지역</h4>
+            <div id="favorites-list"><div class="loading-text">로딩 중...</div></div>
+        </div>
+        <div class="quick-links">
+            <h4>빠른 링크</h4>
+            <ul>
+                <li><a href="/map">위험 지도</a></li>
+                <li><a href="/searchscan">매물 분석</a></li>
+                <li><a href="/scam-types">사기 유형</a></li>
+                <li><a href="/self-check">자가진단</a></li>
+                <li><a href="/about">문의하기</a></li>
+                <li><a href="/faq">자주 묻는 질문</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+<style>
+.left-sidebar{position:fixed;left:0;top:70px;width:280px;height:calc(100vh - 70px);background:white;box-shadow:2px 0 8px rgba(0,0,0,0.1);z-index:999;overflow-y:auto;overflow-x:hidden;transition:transform 0.3s ease,visibility 0.3s ease;transform:translateX(-100%);visibility:hidden;display:block!important}
+.left-sidebar.active{transform:translateX(0)!important;visibility:visible!important;display:block!important}
+.sidebar-header{padding:20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;background:#f8f9fa}
+.sidebar-header h3{margin:0;font-size:16px;color:#333}
+.sidebar-toggle{background:none;border:none;font-size:20px;cursor:pointer;color:#666}
+.sidebar-content{padding:20px;min-height:200px;display:block!important}
+.sidebar-content h4{margin:0 0 12px 0;font-size:14px;color:#555;font-weight:600}
+.sidebar-content>div{margin-bottom:24px}
+.search-input-group{display:flex;gap:8px}
+.search-input-group input{flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px}
+.search-input-group button{padding:8px 12px;background:var(--brand-600);color:white;border:none;border-radius:4px;cursor:pointer;font-size:14px}
+.recent-searches,.favorites{max-height:200px;overflow-y:auto}
+.search-item,.favorite-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin:4px 0;background:#f8f9fa;border-radius:4px;cursor:pointer;transition:background 0.2s}
+.search-item:hover,.favorite-item:hover{background:#e9ecef}
+.search-item .region-name,.favorite-item .region-name{font-weight:500;color:#333}
+.search-item .search-date,.favorite-item .favorite-date{font-size:12px;color:#666}
+.remove-btn{background:none;border:none;color:#dc3545;cursor:pointer;font-size:12px;padding:2px 6px}
+.quick-links ul{list-style:none;padding:0;margin:0}
+.quick-links li{margin:4px 0}
+.quick-links a{display:block;padding:8px 12px;color:#555;text-decoration:none;border-radius:4px;transition:background 0.2s}
+.quick-links a:hover{background:#f8f9fa;color:var(--brand-600)}
+.loading-text{color:#666;font-size:14px;text-align:center;padding:20px}
+</style>
+<script>
+function quickSearch(){const i=document.getElementById('quick-search-input');const r=i.value.trim();if(!r)return;const p=window.location.pathname;if(p==='/map'){if(typeof searchAddress==='function')searchAddress()}else{window.location.href=`/searchscan?region=${encodeURIComponent(r)}`}}
+document.addEventListener('DOMContentLoaded',function(){const q=document.getElementById('quick-search-input');if(q){q.addEventListener('keydown',e=>{if(e.key==='Enter')quickSearch()})}const s=document.getElementById('left-sidebar')||document.querySelector('.left-sidebar');if(s){s.classList.remove('active');s.style.transform='translateX(-100%)';s.style.visibility='hidden'}const p=window.location.pathname;if(p!=='/map'){setTimeout(()=>{const c=document.getElementById('sidebar-recent-searches-list');if(c){fetch('/api/search-history').then(r=>r.json()).then(d=>{if(!c)return;if(d.length===0){c.innerHTML='<div class="loading-text">검색 기록이 없습니다.</div>';return}c.innerHTML=d.map(item=>{const dr=toDongUnit(item.region);return`<div class="search-item"><div onclick="searchRegion('${item.region}')" style="flex:1;cursor:pointer"><div class="region-name">${dr}</div><div class="search-date">${new Date(item.search_date).toLocaleDateString()}</div></div><div style="display:flex;align-items:center;gap:8px"><span class="risk-score">${(item.jeonse_rate!==undefined&&item.jeonse_rate!==null)?item.jeonse_rate.toFixed(1)+'%':((item.risk_score!==undefined&&item.risk_score!==null)?item.risk_score.toFixed(1)+'%':'N/A')}</span><button class="remove-btn" onclick="event.stopPropagation();deleteSearchHistory(${item.id})" title="삭제">×</button></div></div>`}).join('')}).catch(e=>{if(c)c.innerHTML='<div class="loading-text">로딩 실패</div>'})}const f=document.getElementById('favorites-list');if(f){fetch('/api/favorites').then(r=>r.json()).then(d=>{if(!f)return;if(d.length===0){f.innerHTML='<div class="loading-text">즐겨찾기가 없습니다.</div>';return}f.innerHTML=d.map(item=>`<div class="favorite-item"><div class="region-name" onclick="searchRegion('${item.region}')">${item.region}</div><button class="remove-btn" onclick="removeFavorite('${item.region}')">×</button></div>`).join('')}).catch(e=>{if(f)f.innerHTML='<div class="loading-text">로딩 실패</div>'})}},100)}});
+function loadRecentSearches(){fetch('/api/search-history').then(r=>r.json()).then(d=>{const c=document.getElementById('sidebar-recent-searches-list');if(!c)return;if(d.length===0){c.innerHTML='<div class="loading-text">검색 기록이 없습니다.</div>';return}c.innerHTML=d.map(item=>{const dr=toDongUnit(item.region);return`<div class="search-item"><div onclick="searchRegion('${item.region}')" style="flex:1;cursor:pointer"><div class="region-name">${dr}</div><div class="search-date">${new Date(item.search_date).toLocaleDateString()}</div></div><div style="display:flex;align-items:center;gap:8px"><span class="risk-score">${(item.jeonse_rate!==undefined&&item.jeonse_rate!==null)?item.jeonse_rate.toFixed(1)+'%':((item.risk_score!==undefined&&item.risk_score!==null)?item.risk_score.toFixed(1)+'%':'N/A')}</span><button class="remove-btn" onclick="event.stopPropagation();deleteSearchHistory(${item.id})" title="삭제">×</button></div></div>`}).join('')}).catch(e=>{const c=document.getElementById('sidebar-recent-searches-list');if(c)c.innerHTML='<div class="loading-text">로딩 실패</div>'})}
+function toDongUnit(r){if(!r||typeof r!=='string')return r;const d=r.match(/([가-힣0-9]+동)/);if(d)return d[1];const g=r.match(/([가-힣0-9]+가)/);if(g)return g[1];const ri=r.match(/([가-힣0-9]+리)/);if(ri)return ri[1];return r}
+function loadFavorites(){fetch('/api/favorites').then(r=>r.json()).then(d=>{const c=document.getElementById('favorites-list');if(d.length===0){c.innerHTML='<div class="loading-text">즐겨찾기가 없습니다.</div>';return}c.innerHTML=d.map(item=>`<div class="favorite-item"><div class="region-name" onclick="searchRegion('${item.region}')">${item.region}</div><button class="remove-btn" onclick="removeFavorite('${item.region}')">×</button></div>`).join('')}).catch(e=>{document.getElementById('favorites-list').innerHTML='<div class="loading-text">로딩 실패</div>'})}
+function searchRegion(r){const p=window.location.pathname;if(p==='/map'){if(typeof searchAddress==='function'){const i=document.getElementById('address-search')||document.getElementById('quick-search-input');if(i){i.value=r;searchAddress()}}}else{window.location.href=`/searchscan?region=${encodeURIComponent(r)}`}}
+function removeFavorite(r){fetch('/api/favorites',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({region:r})}).then(r=>r.json()).then(d=>{loadFavorites()})}
+function deleteSearchHistory(h){if(!confirm('이 검색 기록을 삭제하시겠습니까?'))return;fetch(`/api/search-history/${h}`,{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'same-origin'}).then(r=>r.json()).then(d=>{if(d.status==='success'){if(typeof loadSidebarRecentSearches==='function')loadSidebarRecentSearches();else loadRecentSearches()}else{alert('삭제에 실패했습니다.')}}).catch(e=>{console.error('Error:',e);alert('삭제 중 오류가 발생했습니다.')})}
+function deleteAllSearchHistoryFromSidebar(){if(!confirm('모든 검색 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'))return;fetch('/api/search-history/all',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'same-origin'}).then(r=>r.json()).then(d=>{if(d.status==='success'){alert('모든 검색 기록이 삭제되었습니다.');if(typeof loadSidebarRecentSearches==='function')loadSidebarRecentSearches();else loadRecentSearches()}else{alert('삭제에 실패했습니다.')}}).catch(e=>{console.error('Error:',e);alert('삭제 중 오류가 발생했습니다.')})}
+</script>

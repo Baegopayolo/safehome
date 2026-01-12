@@ -1,0 +1,104 @@
+<style>
+footer{background:#1f2937;color:#d1d5db;padding:60px 20px 30px}
+.footer-grid{max-width:1100px;margin:0 auto 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:40px}
+.footer-col h4{color:white;font-size:16px;margin-bottom:20px;font-weight:600}
+.footer-col p{font-size:14px;line-height:1.6;color:#d1d5db}
+.footer-col ul{list-style:none;padding:0;margin:0}
+.footer-col ul li{margin-bottom:12px}
+.footer-col a{color:#d1d5db;text-decoration:none;font-size:14px;transition:color 0.2s}
+.footer-col a:hover{color:white}
+.footer-bottom{max-width:1100px;margin:0 auto;padding-top:30px;border-top:1px solid #374151;text-align:center;font-size:14px;color:#9ca3af}
+.footer-newsletter{background:#374151;padding:20px;border-radius:8px;margin-bottom:20px}
+.footer-newsletter h4{color:white;font-size:16px;margin-bottom:12px}
+.footer-newsletter p{font-size:13px;margin-bottom:16px;color:#d1d5db}
+.newsletter-form{display:flex;gap:8px}
+.newsletter-form input{flex:1;padding:10px 14px;border:1px solid #4b5563;background:#1f2937;color:white;border-radius:6px;font-size:14px}
+.newsletter-form input::placeholder{color:#9ca3af}
+.newsletter-form button{padding:10px 20px;background:#1565c0;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;transition:background 0.2s}
+.newsletter-form button:hover{background:#0d4fa3}
+.footer-social{display:flex;gap:12px;margin-top:16px}
+.social-link{width:36px;height:36px;background:#374151;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#d1d5db;text-decoration:none;font-size:18px;transition:all 0.2s}
+.social-link:hover{background:#1565c0;color:white;transform:translateY(-2px)}
+.footer-certifications{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.cert-badge{padding:6px 12px;background:#374151;border-radius:6px;font-size:12px;color:#d1d5db;display:flex;align-items:center;gap:6px}
+.partners-section{margin:30px 0;padding:20px 0;border-top:1px solid #374151;border-bottom:1px solid #374151}
+.partners-title{text-align:center;color:#9ca3af;font-size:13px;margin-bottom:16px}
+.partners-logos{display:flex;justify-content:center;gap:30px;flex-wrap:wrap;align-items:center}
+.partner-logo{color:#6b7280;font-size:14px;font-weight:600;padding:8px 16px;background:#374151;border-radius:6px}
+@media (max-width:768px){.footer-grid{gap:20px}.footer-col{flex:1 1 calc(50% - 10px)}}
+</style>
+<footer>
+    <div class="footer-grid">
+        <div class="footer-col">
+            <h4>세이프홈</h4>
+            <p>전세사기 예방을 위한<br>AI 분석 플랫폼</p>
+            <div class="footer-social">
+                <a href="#" class="social-link" title="페이스북">📘</a>
+                <a href="#" class="social-link" title="인스타그램">📷</a>
+                <a href="#" class="social-link" title="유튜브">▶️</a>
+                <a href="#" class="social-link" title="카카오톡">💬</a>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h4>서비스</h4>
+            <ul>
+                <li><a href="{{ url_for('searchscan_page') }}">매물 분석</a></li>
+                <li><a href="{{ url_for('map_page') }}">위험도 지도</a></li>
+                <li><a href="{{ url_for('selfcheck_page') }}">자가 진단</a></li>
+                <li><a href="{{ url_for('scam_types_page') }}">사기 유형</a></li>
+                <li><a href="{{ url_for('faq_page') }}">자주 묻는 질문</a></li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h4>정보</h4>
+            <ul>
+                <li><a href="{{ url_for('intro_page') }}">소개</a></li>
+                <li><a href="#">이용약관</a></li>
+                <li><a href="#">개인정보처리방침</a></li>
+                <li><a href="#">사업자 정보</a></li>
+                <li><a href="#">보도자료</a></li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h4>고객센터</h4>
+            <ul>
+                <li><a href="{{ url_for('about_page') }}">문의하기</a></li>
+                <li>📧 help@safehome.kr</li>
+                <li>📞 1234-5678</li>
+                <li>⏰ 평일 09:00 - 18:00</li>
+                <li style="margin-top:8px;color:#9ca3af;font-size:12px">(주말 및 공휴일 휴무)</li>
+            </ul>
+            <div class="footer-certifications">
+                <span class="cert-badge">✓ 개인정보보호</span>
+                <span class="cert-badge">✓ SSL 인증</span>
+            </div>
+        </div>
+        <div class="footer-col">
+            <div class="footer-newsletter">
+                <h4>뉴스레터 구독</h4>
+                <p>전세 시장 동향과 안전 정보를 받아보세요</p>
+                <form class="newsletter-form" onsubmit="event.preventDefault();alert('구독해주셔서 감사합니다!')">
+                    <input type="email" placeholder="이메일 주소" required>
+                    <button type="submit">구독</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="partners-section">
+        <div style="max-width:1100px;margin:0 auto">
+            <div class="partners-title">데이터 파트너</div>
+            <div class="partners-logos">
+                <span class="partner-logo">🏛️ 국토교통부</span>
+                <span class="partner-logo">🏢 서울시</span>
+                <span class="partner-logo">⚖️ 법원등기소</span>
+                <span class="partner-logo">📊 한국감정원</span>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p style="margin-bottom:8px"><strong>세이프홈(SafeHome)</strong> | 대표: 홍길동 | 사업자등록번호: 123-45-67890</p>
+        <p style="margin-bottom:8px">주소: 서울특별시 강남구 테헤란로 123, 8층 | 통신판매업신고: 2025-서울강남-0001</p>
+        <p style="font-size:12px;color:#6b7280;margin-top:16px">본 서비스는 참고 자료로 제공되며, 계약 시 반드시 전문가 상담 및 직접 확인이 필요합니다.<br>세이프홈은 분석 결과로 인한 손해에 대해 법적 책임을 지지 않습니다.</p>
+        <p style="margin-top:16px">© 2025 SafeHome. All rights reserved.</p>
+    </div>
+</footer>
