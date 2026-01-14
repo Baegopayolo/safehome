@@ -1,6 +1,6 @@
 # 🏠 세이프홈 (SafeHome)
 
-전세사기 예방을 위한 종합 플랫폼입니다. 등기부등본 분석부터 지역별 위험도 확인까지, AI가 5초 만에 매물의 안전성을 분석해드립니다.
+전세사기 예방을 위한 종합 플랫폼입니다. 등기부등본 분석부터 지역별 위험도 확인까지 매물의 안전성을 분석해드립니다.
 
 ## ✨ 주요 기능
 
@@ -8,15 +8,18 @@
 - 등기부등본 정보를 기반으로 매물의 위험도를 자동 분석
 - 전세가율, 담보 상태, 근저당 등 핵심 지표 확인
 - 0-100점 사이의 종합 위험도 점수 제공
+- 실거래 데이터 기반 분석
 
 ### 🗺️ 안전 히트맵
-- 지역별 전세 안전도를 시각적으로 확인
+- 지역별 전세 안전도를 시각적으로 확인 (카카오맵 기반)
 - 위험 지역을 미리 파악하여 안전한 계약 지원
 - 실시간 데이터 기반 통계 제공
+- 지역별 필터링 및 검색 기능
 
 ### 📋 자가진단 체크리스트
 - 계약 전 필수 점검 항목을 체크하며 안전도 진단
 - 단계별 가이드를 통한 체계적인 검토
+- 위험 요소 자동 감지 및 경고
 
 ### 📚 사기 유형 학습
 - 깡통전세, 신탁사기 등 대표적인 전세사기 유형 학습
@@ -26,24 +29,35 @@
 - 회원가입 및 로그인
 - 검색 히스토리 관리
 - 즐겨찾기 지역 저장
-- 리뷰 작성 및 신고 기능
+- 리뷰 작성, 수정, 삭제
+- 신고 기능
 - 알림 시스템
+- 마이페이지에서 통합 관리
 
 ## 🛠️ 기술 스택
 
 ### Backend
 - **Python 3.13**
-- **Flask** - 웹 프레임워크
+- **Flask** - 웹 프레임워크 (템플릿 기반 서버 사이드 렌더링)
 - **Flask-SQLAlchemy** - ORM
 - **Flask-Migrate** - 데이터베이스 마이그레이션
 - **Flask-Bcrypt** - 비밀번호 암호화
 - **Flask-Login** - 사용자 인증
 - **Flask-CORS** - CORS 처리
 - **SQLite** - 데이터베이스
+- **Pandas** - 데이터 처리
+- **Requests** - 외부 API 호출
 
 ### Frontend
-- **HTML5** / **CSS3** / **JavaScript**
+- **HTML5** / **CSS3** / **JavaScript (Vanilla JS)**
+- **Jinja2** - 템플릿 엔진
 - **Kakao Maps API** - 지도 서비스
+- **React** (마이크로 프론트엔드) - 지도 컴포넌트만 React로 빌드
+- **Vite** - React 빌드 도구
+
+### 외부 API
+- **Kakao Maps API** - 지도 및 주소 검색
+- **국토교통부 실거래 공개시스템** - 실거래 데이터
 
 ## 📦 설치 방법
 
@@ -53,23 +67,36 @@ git clone https://github.com/your-username/safehome.git
 cd safehome
 ```
 
-### 2. 가상 환경 생성 및 활성화
+### 2. Python 가상 환경 생성 및 활성화
 ```bash
 # Windows
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 
 # macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-### 3. 의존성 설치
+### 3. Python 의존성 설치
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. 환경 변수 설정
+### 4. 지도 모듈 빌드 (선택사항)
+지도 컴포넌트를 React로 빌드하려면:
+
+```bash
+cd map-module
+npm install
+npm run build
+```
+
+빌드가 완료되면 `static/js/map-react.js` 파일이 생성됩니다.
+
+> **참고**: 현재는 기존 `map.js`를 사용 중이며, React 빌드는 향후 마이그레이션을 위한 것입니다.
+
+### 5. 환경 변수 설정
 `.env` 파일을 생성하고 다음 내용을 추가하세요:
 
 ```env
@@ -77,16 +104,22 @@ KAKAO_APP_KEY=your_kakao_app_key_here
 SECRET_KEY=your_secret_key_here
 ```
 
-> **참고**: Kakao Maps API 키는 [Kakao Developers](https://developers.kakao.com/)에서 발급받을 수 있습니다.
+> **참고**: 
+> - Kakao Maps API 키는 [Kakao Developers](https://developers.kakao.com/)에서 발급받을 수 있습니다.
+> - JavaScript 키를 사용해야 합니다 (REST API 키가 아님).
+> - 발급받은 키의 도메인 설정에 `localhost:5000`과 `127.0.0.1:5000`을 추가해야 합니다.
 
-### 5. 데이터베이스 초기화
+### 6. 데이터베이스 초기화
 ```bash
 cd backend
-python -c "from app import app, db; app.app_context().push(); db.create_all()"
+python app.py
 ```
 
-### 6. 샘플 데이터 생성 (선택사항)
+첫 실행 시 데이터베이스가 자동으로 생성됩니다.
+
+### 7. 샘플 데이터 생성 (선택사항)
 ```bash
+cd backend
 python seed_data.py
 ```
 
@@ -98,7 +131,7 @@ cd backend
 python app.py
 ```
 
-서버가 실행되면 브라우저에서 `http://localhost:5000`으로 접속할 수 있습니다.
+서버가 실행되면 브라우저에서 `http://127.0.0.1:5000` 또는 `http://localhost:5000`으로 접속할 수 있습니다.
 
 ### 테스트 계정 (seed_data.py 실행 시)
 - **사용자명**: `test`
@@ -108,112 +141,191 @@ python app.py
 
 ```
 safehome/
-├── backend/                 # 백엔드 애플리케이션
+├── backend/                 # Flask 백엔드 애플리케이션
 │   ├── app.py              # Flask 앱 메인 파일
 │   ├── models.py           # 데이터베이스 모델
-│   ├── utils.py            # 유틸리티 함수
+│   ├── utils.py            # 유틸리티 함수 (매물 분석, 히트맵 등)
 │   ├── time_utils.py       # 시간 관련 유틸리티
 │   ├── seed_data.py        # 샘플 데이터 생성
 │   ├── reset_password.py   # 비밀번호 재설정
 │   ├── routes/             # 라우트 핸들러
-│   │   ├── pages.py        # 페이지 라우트
-│   │   ├── auth.py         # 인증 라우트
-│   │   └── api.py          # API 라우트
-│   ├── reset/              # 데이터 초기화 스크립트
-│   └── instance/           # 데이터베이스 파일
-│       └── site.db
-├── frontend/               # 프론트엔드 템플릿
+│   │   ├── pages.py        # 페이지 라우트 (템플릿 렌더링)
+│   │   ├── auth.py         # 인증 라우트 (로그인, 회원가입, 마이페이지)
+│   │   └── api.py          # API 라우트 (JSON 응답)
+│   └── reset/              # 데이터 초기화 스크립트
+│       ├── reset_data.py
+│       ├── 초기화.bat
+│       └── 초기화.ps1
+│
+├── frontend/               # Flask 템플릿 (서버 사이드 렌더링)
 │   ├── index.html          # 메인 페이지
 │   ├── map.html            # 지도 페이지
 │   ├── searchscan.html     # 검색/스캔 페이지
 │   ├── self-check.html     # 자가진단 페이지
 │   ├── scam-types.html     # 사기 유형 페이지
+│   ├── reviews.html        # 리뷰 페이지
+│   ├── about.html          # 소개 페이지
+│   ├── faq.html            # FAQ 페이지
+│   ├── intro.html          # 인트로 페이지
 │   ├── Login/              # 로그인 관련 페이지
+│   │   ├── login.html
+│   │   ├── register.html
+│   │   ├── mypage.html     # 마이페이지
+│   │   └── logout.html
 │   └── _*.html             # 공통 컴포넌트
+│       ├── _navbar.html    # 네비게이션 바
+│       ├── _footer.html    # 푸터
+│       ├── _left_sidebar.html   # 왼쪽 사이드바
+│       └── _right_sidebar.html  # 오른쪽 사이드바
+│
 ├── static/                 # 정적 파일
 │   ├── css/                # 스타일시트
+│   │   ├── 00_reset.css
+│   │   ├── 01_layout.css
+│   │   ├── 02_components.css
+│   │   ├── 03_pages_index.css
+│   │   ├── style.css
+│   │   ├── map.css
+│   │   ├── mypage.css
+│   │   ├── reviews.css
+│   │   └── searchscan.css
 │   ├── js/                 # JavaScript 파일
+│   │   ├── index.js        # 메인 페이지 스크립트
+│   │   ├── map.js          # 지도 페이지 스크립트
+│   │   ├── searchscan.js  # 검색/스캔 스크립트
+│   │   ├── mypage.js       # 마이페이지 스크립트
+│   │   └── reviews.js      # 리뷰 페이지 스크립트
 │   └── logo.svg            # 로고
-├── venv/                   # 가상 환경 (gitignore)
+│
+├── map-module/             # React 마이크로 프론트엔드 (지도 컴포넌트)
+│   ├── src/
+│   │   ├── main.jsx        # 진입점
+│   │   └── MapComponent.jsx # 지도 React 컴포넌트
+│   ├── package.json
+│   ├── vite.config.js      # Vite 빌드 설정
+│   └── README.md           # 빌드 가이드
+│
+├── .venv/                  # Python 가상 환경 (gitignore)
 ├── .env                    # 환경 변수 (gitignore)
-└── requirements.txt        # Python 패키지 목록
+├── requirements.txt        # Python 패키지 목록
+└── README.md               # 프로젝트 문서
 ```
 
 ## 🔧 주요 기능 설명
 
 ### 매물 분석
-1. 검색/스캔 페이지에서 지역과 매물 정보 입력
+1. 검색/스캔 페이지(`/searchscan`)에서 지역과 매물 정보 입력
 2. 등기부등본 정보를 기반으로 자동 분석
-3. 위험도 점수 및 상세 분석 결과 확인
+3. 전세가율 계산 및 위험도 점수 산출
+4. 위험 요소 경고 및 안전 체크리스트 제공
 
 ### 히트맵
-1. 지도 페이지에서 지역별 위험도 확인
-2. 색상으로 구분된 위험도 시각화
-3. 클릭하여 상세 정보 확인
+1. 지도 페이지(`/map`)에서 지역별 위험도 확인
+2. 색상으로 구분된 위험도 시각화 (빨강: 위험, 노랑: 주의, 초록: 안전)
+3. 지역 클릭하여 상세 정보 확인
+4. 실거래 데이터 표시 및 분석
 
 ### 자가진단
-1. 자가진단 페이지에서 체크리스트 진행
+1. 자가진단 페이지(`/self-check`)에서 체크리스트 진행
 2. 각 항목별 안전도 점검
 3. 종합 결과 및 권장사항 확인
 
+### 리뷰 시스템
+1. 리뷰 페이지(`/reviews`)에서 지역별 리뷰 확인
+2. 마이페이지에서 내 리뷰 관리 (작성, 수정, 삭제)
+3. 평점 및 리뷰 내용 작성
+
 ## 🔄 데이터 초기화
 
-데이터베이스를 초기화하려면 `backend/reset/` 디렉토리의 스크립트를 사용하거나 다음 명령어를 실행하세요:
+데이터베이스를 초기화하려면 `backend/reset/` 디렉토리의 스크립트를 사용하세요:
 
-```bash
-cd backend
-python reset/reset_data.py
-```
-
-또는 PowerShell에서:
+### Windows
 ```powershell
 cd backend
 .\reset\초기화.ps1
 ```
 
+### 모든 플랫폼
+```bash
+cd backend
+python reset/reset_data.py
+```
+
 ## 📝 API 엔드포인트
 
 ### 인증
-- `POST /register` - 회원가입
-- `POST /login` - 로그인
+- `GET /login` - 로그인 페이지
+- `POST /login` - 로그인 처리
+- `GET /register` - 회원가입 페이지
+- `POST /register` - 회원가입 처리
 - `GET /logout` - 로그아웃
+- `GET /mypage` - 마이페이지
+- `POST /change-password` - 비밀번호 변경
 
 ### 매물 분석
-- `POST /api/analyze` - 매물 분석
-- `GET /api/heatmap` - 히트맵 데이터 조회
-- `GET /api/properties` - 지역별 매물 조회
+- `GET /api/analyze?region=지역명` - 매물 분석 (전세가율 포함)
+- `GET /heatmap` - 히트맵 데이터 조회
+- `POST /api/heatmap/refresh` - 히트맵 데이터 새로고침
+- `GET /api/properties?region=지역명` - 지역별 매물 조회
+- `GET /api/real-transactions?region=지역명&deal_ymd=YYYYMM` - 실거래 데이터 조회
 
 ### 사용자 기능
-- `GET /api/history` - 검색 히스토리 조회
-- `POST /api/favorite` - 즐겨찾기 추가
+- `GET /api/search-history` - 검색 히스토리 조회
+- `POST /api/search-history` - 검색 히스토리 저장
+- `DELETE /api/search-history/<id>` - 검색 히스토리 삭제
 - `GET /api/favorites` - 즐겨찾기 목록 조회
-- `POST /api/review` - 리뷰 작성
-- `POST /api/report` - 신고 제출
+- `POST /api/favorites` - 즐겨찾기 추가
+- `DELETE /api/favorites/<id>` - 즐겨찾기 삭제
+- `GET /api/reviews` - 리뷰 목록 조회
+- `POST /api/reviews` - 리뷰 작성
+- `PUT /api/reviews/<id>` - 리뷰 수정
+- `DELETE /api/reviews/<id>` - 리뷰 삭제
+- `POST /api/reports` - 신고 제출
+- `GET /api/notifications` - 알림 목록 조회
+- `PUT /api/notifications` - 알림 읽음 처리
+- `POST /api/notifications/read-all` - 모든 알림 읽음 처리
+- `GET /api/stats` - 통계 데이터 조회
 
-자세한 API 문서는 각 엔드포인트의 소스 코드를 참조하세요.
+## 🏗️ 아키텍처
 
-## 🤝 기여하기
+### 서버 사이드 렌더링 (SSR)
+- Flask가 HTML 템플릿을 렌더링하여 클라이언트에 전달
+- Jinja2 템플릿 엔진 사용
+- 세션 기반 인증
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### 마이크로 프론트엔드
+- 지도 컴포넌트만 React로 빌드 (`map-module/`)
+- 빌드된 JS 파일을 Flask 템플릿에서 `<script>` 태그로 로드
+- 기존 Flask 템플릿과 완전히 통합
 
-## 📄 라이선스
+### API 설계
+- 페이지 렌더링: Flask 템플릿 사용
+- 데이터 조회/수정: JSON API 엔드포인트 사용
+- 인증: Flask-Login 세션 기반
 
-이 프로젝트는 MIT 라이선스를 따릅니다.
+## 🐛 문제 해결
 
-## ⚠️ 주의사항
+### 지도가 표시되지 않는 경우
+1. Kakao Maps API 키 확인
+   - `frontend/map.html`의 API 키 확인
+   - Kakao Developers 콘솔에서 도메인 등록 확인 (`localhost:5000`, `127.0.0.1:5000`)
+2. 브라우저 콘솔 확인
+   - Network 탭에서 스크립트 로드 상태 확인
+   - Console 탭에서 에러 메시지 확인
 
-- 이 서비스는 참고용이며, 실제 계약 시에는 전문가의 조언을 구하시기 바랍니다.
-- 데이터는 실시간으로 업데이트되지만, 정확성을 보장하지 않습니다.
-- 중요한 결정을 내리기 전에 반드시 추가 검증을 수행하세요.
+### 데이터베이스 오류
+```bash
+# 데이터베이스 재생성
+cd backend
+rm instance/site.db
+python app.py
+```
 
-## 📞 문의
-
-프로젝트에 대한 문의사항이나 버그 리포트는 GitHub Issues를 통해 제출해주세요.
-
----
-
-**세이프홈과 함께 안전한 전세 계약을 시작하세요! 🏠✨**
+### 의존성 오류
+```bash
+# 가상 환경 재생성
+rm -rf .venv
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+```
