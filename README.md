@@ -52,12 +52,13 @@
 ### Backend
 - **Python 3.13**
 - **Flask** - 웹 프레임워크 (템플릿 기반 서버 사이드 렌더링)
-- **Flask-SQLAlchemy** - 데이터베이스
+- **Flask-SQLAlchemy** - ORM
 - **Flask-Migrate** - 데이터베이스 마이그레이션
 - **Flask-Bcrypt** - 비밀번호 암호화
 - **Flask-Login** - 사용자 인증
 - **Flask-CORS** - CORS 처리
 - **Requests** - 외부 API 호출
+- **SQLite** - 데이터베이스
 
 
 ### 외부 API
