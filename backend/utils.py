@@ -541,7 +541,20 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None):
     kst = timezone(timedelta(hours=9))
     now = datetime.now(kst)
     # 조회 범위 제한: 3개월 -> 2개월로 축소
-    deal_ymds = [datetime(now.year, now.month - i, 1).strftime('%Y%m') for i in range(2)]
+    # 연도 변경을 고려한 날짜 계산
+    deal_ymds = []
+    for i in range(2):
+        year = now.year
+        month = now.month - i
+        # 월이 0 이하가 되면 이전 연도로 이동
+        while month <= 0:
+            month += 12
+            year -= 1
+        # 월이 12를 초과하면 다음 연도로 이동
+        while month > 12:
+            month -= 12
+            year += 1
+        deal_ymds.append(f"{year}{month:02d}")
     
     # DB에서 먼저 매매 데이터 조회 (캐싱 활용, 정확한 동 이름 필터링)
     sale_properties = []

@@ -407,10 +407,14 @@ def register_api_routes(app, db):
             return jsonify({'error': '권한이 없습니다'}), 403
         if request.method == 'PUT':
             data = request.get_json()
-            review.rating = data.get('rating', review.rating)
-            review.content = data.get('content', review.content)
+            if 'region' in data:
+                review.region = data['region']
+            if 'rating' in data:
+                review.rating = data['rating']
+            if 'content' in data:
+                review.content = data['content']
             db.session.commit()
-            return jsonify({'status': 'success'})
+            return jsonify({'status': 'success', 'message': '리뷰가 수정되었습니다.'})
         else:
             db.session.delete(review)
             db.session.commit()

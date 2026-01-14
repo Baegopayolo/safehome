@@ -165,63 +165,65 @@ function closeReviewModal() {
             star.style.color = '#ddd';
         });
     }
+    
+    // 수정 모드 초기화
+    editingReviewId = null;
+    
+    // 모달 제목과 버튼 텍스트 원래대로
+    const modalTitle = document.getElementById('modal-title');
+    if (modalTitle) {
+        modalTitle.textContent = '리뷰 작성';
+    }
+    const submitBtn = document.querySelector('#review-form button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.textContent = '리뷰 등록';
+    }
 }
 
-function editReview(reviewId) {
-    fetch('/api/reviews')
-        .then(response => response.json())
-        .then(data => {
-            const reviews = data.reviews || (Array.isArray(data) ? data : []);
-            const review = reviews.find(r => r.id === reviewId);
-            if (!review) {
-                alert('리뷰를 찾을 수 없습니다.');
-                return;
-            }
-            openReviewModal();
-            document.getElementById('review-region').value = review.region || '';
-            document.getElementById('review-rating').value = review.rating || 0;
-            document.getElementById('review-content').value = review.content || '';
-            const rating = parseInt(review.rating) || 0;
-            document.querySelectorAll('#rating-stars .star').forEach((star, index) => {
-                star.style.color = index < rating ? '#ffc107' : '#ddd';
-            });
-            const form = document.getElementById('review-form');
-            const originalSubmit = form.onsubmit;
-            form.onsubmit = function(e) {
-                e.preventDefault();
-                const region = document.getElementById('review-region').value.trim();
-                const rating = parseInt(document.getElementById('review-rating').value);
-                const content = document.getElementById('review-content').value.trim();
-                if (!region || rating === 0 || !content) {
-                    alert('모든 항목을 입력해주세요.');
-                    return;
-                }
-                fetch(`/api/reviews/${reviewId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ region: region, rating: rating, content: content })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            alert('리뷰가 수정되었습니다.');
-                            closeReviewModal();
-                            location.reload();
-                        } else {
-                            alert(data.error || '리뷰 수정에 실패했습니다.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('리뷰 수정 중 오류가 발생했습니다.');
-                    });
-            };
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('리뷰 정보를 불러오는 중 오류가 발생했습니다.');
-        });
+// 전역 변수로 수정 중인 리뷰 ID 저장
+let editingReviewId = null;
+
+function editReview(reviewId, region, rating, content) {
+    // 파라미터로 직접 받은 데이터 사용 (HTML에서 전달)
+    const reviewData = {
+        id: parseInt(reviewId),
+        region: region || '',
+        rating: parseInt(rating) || 0,
+        content: content || ''
+    };
+    
+    // 수정 모드 설정
+    editingReviewId = reviewData.id;
+    
+    // 모달 열기
+    openReviewModal();
+    
+    // 모달 제목 변경
+    const modalTitle = document.getElementById('modal-title');
+    if (modalTitle) {
+        modalTitle.textContent = '리뷰 수정';
+    }
+    
+    // 폼에 기존 데이터 채우기
+    const regionInput = document.getElementById('review-region');
+    const ratingInput = document.getElementById('review-rating');
+    const contentInput = document.getElementById('review-content');
+    
+    if (regionInput) regionInput.value = reviewData.region;
+    if (ratingInput) ratingInput.value = reviewData.rating;
+    if (contentInput) contentInput.value = reviewData.content;
+    
+    // 평점 별표 표시
+    const ratingValue = parseInt(reviewData.rating) || 0;
+    document.querySelectorAll('#rating-stars .star').forEach((star, index) => {
+        star.style.color = index < ratingValue ? '#ffc107' : '#ddd';
+    });
+    
+    // 제출 버튼 텍스트 변경
+    const submitBtn = document.querySelector('#review-form button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.textContent = '리뷰 수정';
+    }
 }
 
 function deleteReview(reviewId) {
@@ -251,11 +253,16 @@ function deleteReview(reviewId) {
 document.addEventListener('DOMContentLoaded', function() {
     const reviewForm = document.getElementById('review-form');
     if (reviewForm) {
-        reviewForm.addEventListener('submit', function(e) {
+        // 기존 이벤트 리스너 제거 (중복 방지)
+        const newForm = reviewForm.cloneNode(true);
+        reviewForm.parentNode.replaceChild(newForm, reviewForm);
+        
+        document.getElementById('review-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const region = document.getElementById('review-region').value.trim();
             const rating = parseInt(document.getElementById('review-rating').value);
             const content = document.getElementById('review-content').value.trim();
+            
             if (!region) {
                 alert('지역명을 입력해주세요.');
                 return;
@@ -268,28 +275,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('리뷰 내용을 입력해주세요.');
                 return;
             }
-            fetch('/api/reviews', {
-                method: 'POST',
+            
+            // 수정 모드인지 확인
+            const url = editingReviewId ? `/api/reviews/${editingReviewId}` : '/api/reviews';
+            const method = editingReviewId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
                 body: JSON.stringify({ region: region, rating: rating, content: content })
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        return response.json().then(data => Promise.reject(data));
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.status === 'success') {
-                        alert('리뷰가 등록되었습니다.');
+                        alert(editingReviewId ? '리뷰가 수정되었습니다.' : '리뷰가 등록되었습니다.');
                         closeReviewModal();
                         location.reload();
                     } else {
-                        alert(data.error || '리뷰 등록에 실패했습니다.');
-                        if (data.error && data.error.includes('로그인')) {
-                            window.location.href = '/login';
-                        }
+                        alert(data.error || (editingReviewId ? '리뷰 수정에 실패했습니다.' : '리뷰 등록에 실패했습니다.'));
                     }
                 })
                 .catch(error => {
-                    console.error('리뷰 등록 오류:', error);
-                    alert('리뷰 등록 중 오류가 발생했습니다.');
+                    console.error('리뷰 처리 오류:', error);
+                    alert(editingReviewId ? '리뷰 수정 중 오류가 발생했습니다.' : '리뷰 등록 중 오류가 발생했습니다.');
                 });
         });
     }

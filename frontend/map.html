@@ -125,7 +125,10 @@
     </div>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=8247295f2354056a3b44ceb99ae6d086&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
+    <!-- 기존 map.js (필수 함수 포함) -->
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <!-- React 지도 모듈 (마이크로 프론트엔드) - 빌드 후 활성화 -->
+    <!-- <script src="{{ url_for('static', filename='js/map-react.js') }}"></script> -->
     {% include '_footer.html' %}
 </body>
 </html>

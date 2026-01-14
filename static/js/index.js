@@ -147,27 +147,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         });
     }
-    document.querySelectorAll('#rating-stars .star').forEach(star => {
-        star.addEventListener('click', function() {
-            const rating = parseInt(this.dataset.rating);
-            document.getElementById('review-rating').value = rating;
-            document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
-                s.style.color = index < rating ? '#ffc107' : '#ddd';
+    const ratingStarsContainer = document.getElementById('rating-stars');
+    if (ratingStarsContainer) {
+        document.querySelectorAll('#rating-stars .star').forEach(star => {
+            star.addEventListener('click', function() {
+                const rating = parseInt(this.dataset.rating);
+                document.getElementById('review-rating').value = rating;
+                document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
+                    s.style.color = index < rating ? '#ffc107' : '#ddd';
+                });
+            });
+            star.addEventListener('mouseenter', function() {
+                const rating = parseInt(this.dataset.rating);
+                document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
+                    s.style.color = index < rating ? '#ffc107' : '#ddd';
+                });
             });
         });
-        star.addEventListener('mouseenter', function() {
-            const rating = parseInt(this.dataset.rating);
+        ratingStarsContainer.addEventListener('mouseleave', function() {
+            const currentRating = parseInt(document.getElementById('review-rating').value) || 0;
             document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
-                s.style.color = index < rating ? '#ffc107' : '#ddd';
+                s.style.color = index < currentRating ? '#ffc107' : '#ddd';
             });
         });
-    });
-    document.getElementById('rating-stars').addEventListener('mouseleave', function() {
-        const currentRating = parseInt(document.getElementById('review-rating').value) || 0;
-        document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
-            s.style.color = index < currentRating ? '#ffc107' : '#ddd';
-        });
-    });
+    }
     const reviewForm = document.getElementById('review-form');
     if (reviewForm) {
         reviewForm.addEventListener('submit', function(e) {
