@@ -100,8 +100,28 @@ npm run build
 
 빌드가 완료되면 `static/js/map-react.js` 파일이 생성됩니다.
 
+### 4. 지도 모듈 빌드 (선택사항)
+지도 컴포넌트를 React로 빌드하려면:
 
-### 5. 데이터베이스 초기화
+```bash
+cd map-module
+npm install
+npm run build
+```
+
+빌드가 완료되면 `static/js/map-react.js` 파일이 생성됩니다.
+
+> **참고**: 현재는 기존 `map.js`를 사용 중이며, React 빌드는 향후 마이그레이션을 위한 것입니다.
+
+### 5. 환경 변수 설정
+`.env` 파일을 생성하고 다음 내용을 추가하세요:
+
+```env
+KAKAO_APP_KEY=your_kakao_app_key_here
+SECRET_KEY=your_secret_key_here
+```
+
+### 6. 데이터베이스 초기화
 ```bash
 cd backend
 python app.py
@@ -109,7 +129,7 @@ python app.py
 
 첫 실행 시 데이터베이스가 자동으로 생성됩니다.
 
-### 6. 샘플 데이터 생성 (선택사항)
+### 7. 샘플 데이터 생성 (선택사항)
 ```bash
 cd backend
 python seed_data.py
