@@ -138,10 +138,12 @@ def register_api_routes(app, db):
             region = request.args.get('region', '').strip()
             if not region:
                 return jsonify({'error': '지역명을 입력하세요'}), 400
+            
             try:
                 properties = fetch_properties_by_region(region, db, RealTransaction)
             except Exception as e:
-                print(f"[에러] fetch_properties_by_region 실패: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 import traceback
                 traceback.print_exc()
                 return jsonify({'error': f'매물 정보를 가져오는 중 오류가 발생했습니다: {str(e)}'}), 500
@@ -419,20 +421,33 @@ def register_api_routes(app, db):
             db.session.delete(review)
             db.session.commit()
             return jsonify({'status': 'success'})
-    @app.route('/api/reports', methods=['POST'])
+    @app.route('/api/reports', methods=['GET', 'POST'])
     @login_required
     def reports():
-        data = request.get_json()
-        report = Report(
-            user_id=current_user.id,
-            region=data.get('region', '알 수 없음'),
-            property_address=data.get('property_address', ''),
-            report_type=data.get('report_type', 'other'),
-            description=data.get('description', '')
-        )
-        db.session.add(report)
-        db.session.commit()
-        return jsonify({'status': 'success', 'report_id': report.id})
+        if request.method == 'GET':
+            # 현재 사용자의 신고 목록 반환
+            user_reports = Report.query.filter_by(user_id=current_user.id).order_by(Report.created_at.desc()).all()
+            return jsonify([{
+                'id': r.id,
+                'region': r.region,
+                'property_address': r.property_address or '주소 정보 없음',
+                'report_type': r.report_type,
+                'status': r.status,
+                'created_at': format_kst_datetime(r.created_at),
+                'description': r.description or ''
+            } for r in user_reports])
+        else:
+            data = request.get_json()
+            report = Report(
+                user_id=current_user.id,
+                region=data.get('region', '알 수 없음'),
+                property_address=data.get('property_address', ''),
+                report_type=data.get('report_type', 'other'),
+                description=data.get('description', '')
+            )
+            db.session.add(report)
+            db.session.commit()
+            return jsonify({'status': 'success', 'report_id': report.id})
     @app.route('/api/notifications', methods=['GET', 'PUT'])
     def notifications():
         if request.method == 'PUT':
@@ -533,3 +548,57 @@ def register_api_routes(app, db):
         for year, count in yearly_data:
             yearly_stats[int(year)] = count
         return jsonify([{'year': year, 'count': yearly_stats[year]} for year in range(2020, 2026)])
+    
+    @app.route('/api/admin/delete-region', methods=['POST'])
+    @login_required
+    def delete_region_data():
+        """특정 지역의 모든 데이터 삭제 (관리자용)"""
+        data = request.get_json()
+        region_name = data.get('region', '').strip()
+        
+        if not region_name:
+            return jsonify({'error': '지역명을 입력하세요'}), 400
+        
+        try:
+            deleted_counts = {}
+            
+            # 1. 검색 기록 삭제
+            search_history_count = SearchHistory.query.filter_by(region=region_name).delete()
+            deleted_counts['search_history'] = search_history_count
+            
+            # 2. 즐겨찾기 삭제
+            favorite_count = Favorite.query.filter_by(region=region_name).delete()
+            deleted_counts['favorites'] = favorite_count
+            
+            # 3. 리뷰 삭제
+            review_count = Review.query.filter_by(region=region_name).delete()
+            deleted_counts['reviews'] = review_count
+            
+            # 4. 신고 삭제
+            report_count = Report.query.filter_by(region=region_name).delete()
+            deleted_counts['reports'] = report_count
+            
+            # 5. 히트맵 데이터 삭제
+            heatmap_count = HeatmapData.query.filter_by(region=region_name).delete()
+            deleted_counts['heatmap_data'] = heatmap_count
+            
+            # 6. 실거래 데이터 삭제
+            from sqlalchemy import or_
+            real_tx_count = RealTransaction.query.filter(
+                or_(
+                    RealTransaction.region == region_name,
+                    RealTransaction.dong_name.contains(region_name)
+                )
+            ).delete()
+            deleted_counts['real_transactions'] = real_tx_count
+            
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'{region_name} 지역 데이터가 삭제되었습니다.',
+                'deleted_counts': deleted_counts
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'삭제 중 오류 발생: {str(e)}'}), 500

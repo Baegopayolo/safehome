@@ -82,6 +82,8 @@ def _resolve_lawd_cd(region: str, fallback: str = '11110') -> str:
         '목동': '양천구', '신월동': '양천구',
         '서교동': '마포구', '연남동': '마포구', '성산동': '마포구', '합정동': '마포구',
         '상암동': '마포구', '공덕동': '마포구', '아현동': '마포구', '도화동': '마포구',
+        '문래동': '영등포구', '여의도동': '영등포구', '당산동': '영등포구', '신길동': '영등포구',
+        '대림동': '영등포구', '양평동': '영등포구', '도림동': '영등포구',
         '독산동': '금천구', '가산동': '금천구', '시흥동': '금천구',
         '신림동': '관악구', '봉천동': '관악구', '남현동': '관악구', '서원동': '관악구',
         '잠실동': '송파구', '신천동': '송파구', '방이동': '송파구', '문정동': '송파구',
@@ -92,7 +94,7 @@ def _resolve_lawd_cd(region: str, fallback: str = '11110') -> str:
         '사직동': '종로구', '삼청동': '종로구', '혜화동': '종로구', '이화동': '종로구',
         '명륜동': '종로구', '와룡동': '종로구', '무악동': '종로구', '교남동': '종로구',
         '반포동': '서초구', '잠원동': '서초구', '방배동': '서초구', '양재동': '서초구',
-        '내곡동': '서초구', '염곡동': '서초구',
+        '내곡동': '서초구', '염곡동': '서초구', '서초동': '서초구',
         '미아동': '강북구', '번동': '강북구', '수유동': '강북구', '우이동': '강북구',
         '월계동': '노원구', '공릉동': '노원구', '하계동': '노원구', '중계동': '노원구', '상계동': '노원구',
         '불광동': '은평구', '녹번동': '은평구', '응암동': '은평구', '신사동': '은평구',
@@ -106,6 +108,9 @@ def _resolve_lawd_cd(region: str, fallback: str = '11110') -> str:
             for gu, code in SEOUL_SIGUNGU_CODES.items():
                 if gu == gu_name:
                     return code
+    
+    # 매칭 실패 시 경고 및 기본값 반환
+    print(f"[경고] _resolve_lawd_cd: '{region}'에 대한 법정동 코드를 찾지 못함, 기본값({fallback}) 반환")
     return fallback
 
 def _parse_common_fields(item):
@@ -364,7 +369,6 @@ def get_heatmap_data(db=None, HeatmapData=None, RealTransaction=None, force_upda
         {'region': '성산동', 'lat': 37.5667, 'lng': 126.9000},
         {'region': '합정동', 'lat': 37.5500, 'lng': 126.9139},
         {'region': '상암동', 'lat': 37.5767, 'lng': 126.8933},
-        {'region': '홍대입구', 'lat': 37.5569, 'lng': 126.9236},
         # 송파구
         {'region': '잠실동', 'lat': 37.5133, 'lng': 127.1028},
         {'region': '신천동', 'lat': 37.5142, 'lng': 127.1025},
@@ -417,6 +421,8 @@ def get_heatmap_data(db=None, HeatmapData=None, RealTransaction=None, force_upda
             print(f"[히트맵] DB에서 {len(db_data_dict)}개 지역 데이터 로드")
     
     # 전세가율 기반으로 자동 계산 (DB에 없는 지역만)
+    # 중요: 히트맵 데이터 생성 시에는 /analyze API를 호출하지 않음
+    # 히트맵 데이터는 DB에 저장된 데이터만 사용하거나 기본값(0) 사용
     heatmap_data = []
     for region_info in default_regions:
         region = region_info['region']
@@ -426,28 +432,14 @@ def get_heatmap_data(db=None, HeatmapData=None, RealTransaction=None, force_upda
             heatmap_data.append(db_data_dict[region])
             continue
         
-        # DB에 없으면 새로 계산
-        try:
-            properties = fetch_properties_by_region(region, db, RealTransaction)
-            score = _calculate_jeonse_rate_score(properties)
-            # 점수가 0이어도 원은 표시되어야 하므로 항상 추가
-            heatmap_data.append({
-                'region': region,
-                'score': score,
-                'lat': region_info['lat'],
-                'lng': region_info['lng']
-            })
-        except Exception as e:
-            # 에러 발생 시 기본 점수 0으로 설정 (원은 표시됨)
-            import traceback
-            print(f"[히트맵] {region} 계산 중 에러: {str(e)}")
-            print(traceback.format_exc())
-            heatmap_data.append({
-                'region': region,
-                'score': 0,
-                'lat': region_info['lat'],
-                'lng': region_info['lng']
-            })
+        # DB에 없으면 기본 점수 0으로 설정 (API 호출하지 않음)
+        # 히트맵 데이터는 사용자가 검색할 때만 /analyze API를 호출하도록 변경
+        heatmap_data.append({
+            'region': region,
+            'score': 0,
+            'lat': region_info['lat'],
+            'lng': region_info['lng']
+        })
     
     # 계산된 데이터를 DB에 저장
     if db and HeatmapData and heatmap_data:
@@ -511,8 +503,24 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None):
     """지역명을 받아 국토부 API를 조회하고, 매물 리스트를 반환하는 함수 (전세가율 포함) - 최적화 버전"""
     if not region:
         return []
+    
     dong = _extract_dong(region)
     lawd_cd = _resolve_lawd_cd(region)
+    
+    # 법정동 코드가 기본값(종로구)이고 지역명이 종로구가 아닌 경우 경고
+    if lawd_cd == '11110' and '종로' not in region and '종로동' not in region:
+        print(f"[경고] 지역명 '{region}'에 대한 법정동 코드를 찾지 못해 기본값(종로구)을 사용합니다.")
+        print(f"[경고] 추출된 동 이름: '{dong}', 지역명: '{region}'")
+        # 서초동의 경우 명시적으로 처리
+        if '서초' in region and ('동' in region or dong == '서초동'):
+            print(f"[수정] 서초동을 서초구(11650)로 명시적으로 매핑합니다.")
+            lawd_cd = '11650'  # 서초구 코드
+    
+    # 서초동 명시적 처리 (위에서 처리되지 않은 경우)
+    if '서초' in region and ('동' in region or dong == '서초동') and lawd_cd != '11650':
+        print(f"[수정] 서초동을 서초구(11650)로 명시적으로 매핑합니다.")
+        lawd_cd = '11650'
+    
     lawd_cds_to_try = [lawd_cd]
     if dong and dong != region:
         dong_to_gu = {
@@ -520,11 +528,14 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None):
             '압구정동': '강남구', '논현동': '강남구', '신사동': '강남구', '도곡동': '강남구',
             '화곡동': '강서구', '등촌동': '강서구', '마곡동': '강서구', '가양동': '강서구',
             '서교동': '마포구', '연남동': '마포구', '성산동': '마포구', '합정동': '마포구',
+            '문래동': '영등포구', '여의도동': '영등포구', '당산동': '영등포구', '신길동': '영등포구',
+            '대림동': '영등포구', '양평동': '영등포구', '도림동': '영등포구',
             '독산동': '금천구', '가산동': '금천구', '시흥동': '금천구',
             '신림동': '관악구', '봉천동': '관악구', '남현동': '관악구',
             '잠실동': '송파구', '신천동': '송파구', '방이동': '송파구', '석촌동': '송파구',
             '명일동': '강동구', '고덕동': '강동구', '상일동': '강동구',
             '사직동': '종로구', '삼청동': '종로구', '혜화동': '종로구',
+            '서초동': '서초구',
         }
         if dong in dong_to_gu:
             gu_name = dong_to_gu[dong]
@@ -641,27 +652,30 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None):
                         rent_api_count += 1
                         if transactions:
                             rent_success_count += 1
-            for item in transactions:
-                jeonse_price = item.get('전세금액', 0)
-                monthly_rent = item.get('월세금액', 0)
-                # 전세금액이 있거나 월세가 있는 경우 추가 (전세+월세 혼합도 포함)
-                if jeonse_price or monthly_rent:
-                    # 전세+월세 혼합의 경우 전세금액을 우선 사용
-                    # 전세금액이 없으면 월세의 보증금을 전세금액으로 간주하지 않음
-                    if jeonse_price:
-                        rent_properties.append({
-                            'apt_name': item.get('아파트', '이름 없음'),
-                            'dong_name': item.get('법정동', ''),
-                            'jibun': item.get('지번', ''),
-                            'area': item.get('전용면적', ''),
-                            'floor': item.get('층', ''),
-                            'jeonse_price': jeonse_price,
-                            'deal_date': item.get('거래일자', ''),
-                            'raw_data': item
-                        })
+                        for item in transactions:
+                            jeonse_price = item.get('전세금액', 0)
+                            monthly_rent = item.get('월세금액', 0)
+                            
+                            # 전세금액이 있거나 월세가 있는 경우 추가 (전세+월세 혼합도 포함)
+                            if jeonse_price or monthly_rent:
+                                # 전세+월세 혼합의 경우 전세금액을 우선 사용
+                                # 전세금액이 없으면 월세의 보증금을 전세금액으로 간주하지 않음
+                                if jeonse_price:
+                                    # 전세가가 합리적인 범위인지 확인 (최소 1000만원 이상)
+                                    if jeonse_price >= 1000:
+                                        rent_properties.append({
+                                            'apt_name': item.get('아파트', '이름 없음'),
+                                            'dong_name': item.get('법정동', ''),
+                                            'jibun': item.get('지번', ''),
+                                            'area': item.get('전용면적', ''),
+                                            'floor': item.get('층', ''),
+                                            'jeonse_price': jeonse_price,
+                                            'deal_date': item.get('거래일자', ''),
+                                            'raw_data': item
+                                        })
+                                    else:
+                                        print(f"[경고] 전세가({jeonse_price}만원)가 너무 낮습니다. 데이터 오류 가능성. 제외합니다.")
         
-    # 디버깅: 전세 데이터 수집 상태 확인
-    print(f"[전세 데이터] API 호출: {rent_api_count}회, 성공: {rent_success_count}회, 수집된 전세 매물: {len(rent_properties)}개")
     # 매칭 로직 최적화: O(n*m) -> O(n) (딕셔너리 사용)
     def parse_area(area_str):
             if not area_str:
@@ -740,10 +754,28 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None):
         if matched_rent and matched_rent['jeonse_price'] and sale['sale_price']:
             jeonse_price = matched_rent['jeonse_price']
             sale_price = sale['sale_price']
-            jeonse_rate = (jeonse_price / sale_price) * 100 if sale_price > 0 else None
-            prop_data['jeonse_price'] = jeonse_price
-            prop_data['jeonse_price_formatted'] = _format_price_to_eok(jeonse_price)
-            prop_data['jeonse_rate'] = round(jeonse_rate, 2) if jeonse_rate else None
+            
+            # 전세가와 매매가가 합리적인 범위인지 확인
+            # 전세가는 일반적으로 매매가의 50-90% 범위
+            # 만약 전세가가 매매가의 1% 미만이면 데이터 오류로 간주
+            if jeonse_price > 0 and sale_price > 0:
+                if jeonse_price < sale_price * 0.01:
+                    print(f"[경고] 전세가({jeonse_price}만원)가 매매가({sale_price}만원)의 1% 미만입니다. 데이터 오류 가능성.")
+                    # 이 경우 전세가율을 계산하지 않음
+                    prop_data['jeonse_price'] = None
+                    prop_data['jeonse_price_formatted'] = None
+                    prop_data['jeonse_rate'] = None
+                    prop_data['risk_level'] = 'unknown'
+                else:
+                    jeonse_rate = (jeonse_price / sale_price) * 100 if sale_price > 0 else None
+                    prop_data['jeonse_price'] = jeonse_price
+                    prop_data['jeonse_price_formatted'] = _format_price_to_eok(jeonse_price)
+                    prop_data['jeonse_rate'] = round(jeonse_rate, 2) if jeonse_rate else None
+            else:
+                jeonse_rate = None
+                prop_data['jeonse_price'] = None
+                prop_data['jeonse_price_formatted'] = None
+                prop_data['jeonse_rate'] = None
             if jeonse_rate and jeonse_rate >= 80:
                 prop_data['risk_level'] = 'high'
             elif jeonse_rate and jeonse_rate >= 60:

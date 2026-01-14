@@ -239,7 +239,12 @@ function deleteReview(reviewId) {
         .then(data => {
             if (data.status === 'success') {
                 alert('리뷰가 삭제되었습니다.');
-                location.reload();
+                // 리뷰 수 업데이트 (카운트다운 애니메이션)
+                setTimeout(() => {
+                    updateReviewCount();
+                    // 페이지 리로드는 애니메이션 완료 후
+                    setTimeout(() => location.reload(), 800);
+                }, 100);
             } else {
                 alert(data.error || '리뷰 삭제에 실패했습니다.');
             }
@@ -300,7 +305,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.status === 'success') {
                         alert(editingReviewId ? '리뷰가 수정되었습니다.' : '리뷰가 등록되었습니다.');
                         closeReviewModal();
-                        location.reload();
+                        // 리뷰 수 업데이트 (카운트다운 애니메이션)
+                        setTimeout(() => {
+                            updateReviewCount();
+                            // 페이지 리로드는 애니메이션 완료 후
+                            setTimeout(() => location.reload(), 800);
+                        }, 100);
                     } else {
                         alert(data.error || (editingReviewId ? '리뷰 수정에 실패했습니다.' : '리뷰 등록에 실패했습니다.'));
                     }
@@ -362,7 +372,84 @@ function toDongUnit(region) {
     return region;
 }
 
+// 카운트다운 애니메이션 함수
+function animateCount(element, target, duration = 1000) {
+    const start = parseInt(element.textContent) || 0;
+    const increment = (target - start) / (duration / 16); // 60fps 기준
+    let current = start;
+    
+    const timer = setInterval(() => {
+        current += increment;
+        if ((increment > 0 && current >= target) || (increment < 0 && current <= target)) {
+            current = target;
+            clearInterval(timer);
+        }
+        element.textContent = Math.max(0, Math.floor(current));
+    }, 16);
+}
+
+// 리뷰 수 업데이트 함수
+function updateReviewCount() {
+    fetch('/api/reviews')
+        .then(response => response.json())
+        .then(data => {
+            // API 응답 형식: {reviews: [...], current_user_id: ...}
+            const reviews = data.reviews || [];
+            const currentUserId = data.current_user_id;
+            // 현재 사용자의 리뷰만 필터링
+            const userReviews = currentUserId ? reviews.filter(r => r.user_id === currentUserId) : [];
+            
+            const reviewCountElement = document.getElementById('review-count');
+            if (reviewCountElement) {
+                const currentCount = parseInt(reviewCountElement.textContent) || 0;
+                const targetCount = userReviews.length;
+                if (currentCount !== targetCount) {
+                    animateCount(reviewCountElement, targetCount, 600);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('리뷰 수 업데이트 실패:', error);
+        });
+}
+
+// 신고 수 업데이트 함수
+function updateReportCount() {
+    fetch('/api/reports')
+        .then(response => response.json())
+        .then(data => {
+            const reports = Array.isArray(data) ? data : [];
+            const reportCountElement = document.getElementById('report-count');
+            if (reportCountElement) {
+                const currentCount = parseInt(reportCountElement.textContent) || 0;
+                const targetCount = reports.length;
+                if (currentCount !== targetCount) {
+                    animateCount(reportCountElement, targetCount, 600);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('신고 수 업데이트 실패:', error);
+        });
+}
+
+// 페이지 로드 시 카운트다운 애니메이션 실행
 document.addEventListener('DOMContentLoaded', function() {
+    // 통계 카운트다운 애니메이션 (0부터 시작하여 목표값까지)
+    document.querySelectorAll('.user-stat-value').forEach((element, index) => {
+        const target = parseInt(element.getAttribute('data-count')) || 0;
+        // 약간의 지연을 두어 순차적으로 애니메이션 (시각적 효과)
+        setTimeout(() => {
+            if (target > 0) {
+                element.textContent = '0'; // 시작값을 0으로 설정
+                animateCount(element, target, 800);
+            } else {
+                element.textContent = '0';
+            }
+        }, index * 100); // 각 항목마다 100ms씩 지연
+    });
+    
+    // 지역명 변환
     document.querySelectorAll('.history-item .item-title').forEach(el => {
         el.textContent = toDongUnit(el.textContent);
     });

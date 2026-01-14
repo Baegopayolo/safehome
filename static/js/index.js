@@ -1,5 +1,7 @@
 function loadTopRiskRegions() {
     const rankingContainer = document.getElementById('danger-ranking');
+    if (!rankingContainer) return;
+    
     fetch('/heatmap')
         .then(response => {
             if (!response.ok) {
@@ -12,20 +14,29 @@ function loadTopRiskRegions() {
                 rankingContainer.innerHTML = '<div class="rank-item"><span class="rank-region">데이터가 없습니다</span></div>';
                 return;
             }
-            const sortedRegions = data.filter(region => region.score > 0)
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 5);
-            if (sortedRegions.length === 0) {
+            
+            // 전세가율 80% 이상인 위험 지역만 필터링 (score는 전세가율을 의미)
+            const dangerousRegions = data.filter(region => {
+                const score = region.score || 0;
+                // 전세가율 80% 이상이면 위험 지역
+                return score >= 80;
+            })
+            .sort((a, b) => (b.score || 0) - (a.score || 0))
+            .slice(0, 5);
+            
+            if (dangerousRegions.length === 0) {
                 rankingContainer.innerHTML = '<div class="rank-item"><span class="rank-region">위험 지역 데이터가 없습니다</span></div>';
                 return;
             }
-            rankingContainer.innerHTML = sortedRegions.map((region, index) => {
+            
+            rankingContainer.innerHTML = dangerousRegions.map((region, index) => {
                 const rank = index + 1;
-                const scoreClass = region.score >= 80 ? 'danger' : region.score >= 60 ? 'warning' : '';
+                const jeonseRate = region.score || 0;
+                const scoreClass = 'danger'; // 위험 지역이므로 항상 danger 클래스
                 return `<div class="rank-item">
                     <span class="rank-num">${rank}</span>
                     <span class="rank-region">${region.region}</span>
-                    <span class="rank-score ${scoreClass}">${region.score}점</span>
+                    <span class="rank-score ${scoreClass}">${jeonseRate.toFixed(1)}%</span>
                 </div>`;
             }).join('');
         })
@@ -135,6 +146,30 @@ document.addEventListener('DOMContentLoaded', function() {
     loadMainStats();
     loadTopRiskRegions();
     loadYearlyStats();
+    
+    // 위험 지역 실시간 업데이트 (30초마다)
+    let riskRegionsUpdateInterval = setInterval(() => {
+        loadTopRiskRegions();
+    }, 30000); // 30초마다 업데이트
+    
+    // 페이지가 보일 때만 업데이트 (탭 전환 시 중지/재개)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            // 페이지가 숨겨지면 업데이트 중지
+            if (riskRegionsUpdateInterval) {
+                clearInterval(riskRegionsUpdateInterval);
+                riskRegionsUpdateInterval = null;
+            }
+        } else {
+            // 페이지가 보이면 즉시 업데이트하고 주기적 업데이트 재개
+            loadTopRiskRegions();
+            if (!riskRegionsUpdateInterval) {
+                riskRegionsUpdateInterval = setInterval(() => {
+                    loadTopRiskRegions();
+                }, 30000);
+            }
+        }
+    });
     const writeReviewBtn = document.getElementById('write-review-btn');
     if (writeReviewBtn) {
         writeReviewBtn.addEventListener('click', function() {

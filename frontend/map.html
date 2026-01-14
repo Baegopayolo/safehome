@@ -60,11 +60,9 @@
         <div class="sidebar-section">
             <h3>💰 실거래가 조회</h3>
             <div class="real-transaction-search">
-                    <input type="text" id="real-tx-region" placeholder="지역명 (예: 청담동)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px">
-                    <button onclick="loadRealTransactions()" style="width:100%;padding:8px;background:#1565c0;color:white;border:none;border-radius:4px;cursor:pointer">조회하기</button>
-                </div>
+                    <input type="text" id="real-tx-region" placeholder="검색 결과를 확인하세요." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px"></div>
                 <div id="real-tx-results" style="margin-top:12px;max-height:300px;overflow-y:auto">
-                    <div style="color:#999;font-size:13px;text-align:center;padding:20px">지역을 입력하고 조회하세요</div>
+                    <div style="color:#999;font-size:13px;text-align:center;padding:20px">지역을 조회하세요</div>
             </div>
             </div>
         <div class="sidebar-section">
@@ -128,7 +126,7 @@
     <!-- 기존 map.js (필수 함수 포함) -->
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
     <!-- React 지도 모듈 (마이크로 프론트엔드) - 빌드 후 활성화 -->
-    <!-- <script src="{{ url_for('static', filename='js/map-react.js') }}"></script> -->
+    <script src="{{ url_for('static', filename='js/map-react.js') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

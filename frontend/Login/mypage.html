@@ -43,19 +43,19 @@
                 </div>
                 <div class="user-stats">
                     <div class="user-stat">
-                        <div class="user-stat-value">{{ favorites|length }}</div>
+                        <div class="user-stat-value" data-count="{{ favorites|length }}">0</div>
                         <div class="user-stat-label">즐겨찾기</div>
                     </div>
                     <div class="user-stat">
-                        <div class="user-stat-value">{{ history|length }}</div>
+                        <div class="user-stat-value" data-count="{{ reviews|length }}" id="review-count">0</div>
                         <div class="user-stat-label">내 리뷰</div>
                     </div>
                     <div class="user-stat">
-                        <div class="user-stat-value">{{ notifications|length }}</div>
+                        <div class="user-stat-value" data-count="{{ notifications|length }}">0</div>
                         <div class="user-stat-label">알림</div>
                     </div>
                     <div class="user-stat">
-                        <div class="user-stat-value">{{ reports|length }}</div>
+                        <div class="user-stat-value" data-count="{{ reports|length }}" id="report-count">0</div>
                         <div class="user-stat-label">신고</div>
                     </div>
                 </div>
