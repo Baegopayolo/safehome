@@ -41,24 +41,24 @@
 
 ##  기술 스택
 
-### Backend
-- **Python 3.13**
-- **Flask** - 웹 프레임워크 (템플릿 기반 서버 사이드 렌더링)
-- **Flask-SQLAlchemy** - ORM
-- **Flask-Migrate** - 데이터베이스 마이그레이션
-- **Flask-Bcrypt** - 비밀번호 암호화
-- **Flask-Login** - 사용자 인증
-- **Flask-CORS** - CORS 처리
-- **SQLite** - 데이터베이스
-- **Pandas** - 데이터 처리
-- **Requests** - 외부 API 호출
-
 ### Frontend
 - **HTML5** / **CSS3** / **JavaScript (Vanilla JS)**
 - **Jinja2** - 템플릿 엔진
 - **Kakao Maps API** - 지도 서비스
 - **React** (마이크로 프론트엔드) - 지도 컴포넌트만 React로 빌드
 - **Vite** - React 빌드 도구
+
+
+### Backend
+- Python 3.13
+- Flask - 웹 프레임워크 (템플릿 기반 서버 사이드 렌더링)
+- Flask-SQLAlchemy - ORM
+- Flask-Migrate - 데이터베이스 마이그레이션
+- Flask-Bcrypt - 비밀번호 암호화
+- **Flask-Login** - 사용자 인증
+- **Flask-CORS** - CORS 처리
+- **Requests** - 외부 API 호출
+
 
 ### 외부 API
 - **Kakao Maps API** - 지도 및 주소 검색
@@ -123,6 +123,7 @@ python app.py
 ```
 
 서버가 실행되면 브라우저에서 `http://127.0.0.1:5000` 또는 `http://localhost:5000`으로 접속할 수 있습니다.
+
 
 ### 테스트 계정 (seed_data.py 실행 시)
 - **사용자명**: `test`
