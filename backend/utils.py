@@ -17,8 +17,8 @@ def parse_date(deal_date_str):
         pass
     return None
 
-MOLIT_API_KEY = 'CzO0x1MCWDpXH4ZfHg66YC8pxiE7%2F9Bi%2FKRbaQ%2BDnCvBUL4qDOUT7hsha0dXMt7HoK0eqBwrnuwaH1w5eHAG4A%3D%3D'
-MOLIT_RENT_API_KEY = 'CzO0x1MCWDpXH4ZfHg66YC8pxiE7%2F9Bi%2FKRbaQ%2BDnCvBUL4qDOUT7hsha0dXMt7HoK0eqBwrnuwaH1w5eHAG4A%3D%3D' # 전월세 API 키 
+MOLIT_API_KEY = ''
+MOLIT_RENT_API_KEY = '' 
 
 SEOUL_SIGUNGU_CODES = {
     '종로구': '11110', '중구': '11140', '용산구': '11170', '성동구': '11200', '광진구': '11215',
