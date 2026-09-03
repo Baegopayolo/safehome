@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>세이프홈 - 안전 히트맵</title>
-    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
 </head>
@@ -121,7 +120,7 @@
     <div id="map"></div>
     <div class="map-title">지도 위에 지역별 전세사기 위험도가 표시됩니다.</div>
     </div>
-    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=8247295f2354056a3b44ceb99ae6d086&libraries=services"></script>
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
