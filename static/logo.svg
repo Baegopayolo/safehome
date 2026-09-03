@@ -1,25 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <!-- 방패 배경 -->
-  <path d="M100 20 L160 50 L160 120 Q160 160 100 180 Q40 160 40 120 L40 50 Z" 
-        fill="#1565c0" opacity="0.1"/>
-  
-  <!-- 집 아이콘 -->
-  <path d="M100 60 L140 85 L140 130 L60 130 L60 85 Z" 
-        fill="#1565c0"/>
-  
-  <!-- 지붕 -->
-  <path d="M100 50 L150 80 L140 85 L100 60 L60 85 L50 80 Z" 
-        fill="#1565c0"/>
-  
-  <!-- 문 -->
-  <rect x="90" y="105" width="20" height="25" fill="#ffffff" rx="2"/>
-  
-  <!-- 방패 테두리 -->
-  <path d="M100 20 L160 50 L160 120 Q160 160 100 180 Q40 160 40 120 L40 50 Z" 
-        fill="none" stroke="#1565c0" stroke-width="3"/>
-  
-  <!-- 체크마크 (안전 표시) -->
-  <polyline points="70,95 85,110 115,75" 
-            fill="none" stroke="#1565c0" stroke-width="4" 
-            stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="safehomeBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2e7bd6"/>
+      <stop offset="55%" stop-color="#1565c0"/>
+      <stop offset="100%" stop-color="#0d4a94"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 배경 (둥근 사각형) -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#safehomeBg)"/>
+
+  <g transform="translate(106,106)">
+    <!-- 방패 (흰색) -->
+    <path d="M150 26 L246 62 V146 C246 208 206 252 150 276 C94 252 54 208 54 146 V62 L150 26 Z" fill="#ffffff"/>
+    <!-- 방패 안쪽 면 -->
+    <path d="M150 50 L222 78 V146 C222 196 190 232 150 252 C110 232 78 196 78 146 V78 L150 50 Z" fill="#eaf2fd"/>
+
+    <!-- 지붕 -->
+    <path d="M150 96 L214 146 L200 164 L150 125 L100 164 L86 146 L150 96 Z" fill="#0d4a94"/>
+    <path d="M150 96 L206 140 V190 H94 V140 L150 96 Z" fill="#1565c0"/>
+
+    <!-- 집 몸체 / 문 -->
+    <rect x="108" y="140" width="84" height="52" rx="4" fill="#1565c0"/>
+    <rect x="138" y="160" width="24" height="32" rx="3" fill="#eaf2fd"/>
+
+    <!-- 체크마크 배지 -->
+    <circle cx="196" cy="182" r="30" fill="#2fb46b" stroke="#ffffff" stroke-width="6"/>
+    <path d="M182 182 L192 192 L212 170" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
 </svg>
