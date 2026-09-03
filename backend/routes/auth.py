@@ -1,5 +1,5 @@
 """인증 관련 라우트 핸들러"""
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User
 
@@ -28,11 +28,13 @@ def register_auth_routes(app, db, bcrypt):
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
                 login_user(user)
+                session.pop('display_name', None)
                 return redirect(url_for('mypage'))
             flash('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.', 'danger')
         return render_template('Login/login.html')
     @app.route('/logout')
     def logout():
+        session.pop('display_name', None)
         logout_user()
         return redirect(url_for('home'))
     @app.route('/change-password', methods=['POST'])
@@ -152,7 +154,7 @@ def register_auth_routes(app, db, bcrypt):
             'created_at': format_kst_datetime(r.created_at)
         } for r in reviews]
         return render_template('Login/mypage.html',
-                             username=current_user.username,
+                             username=session.get('display_name', current_user.username),
                              join_date=format_kst_date(current_user.created_at, '%Y년 %m월 %d일'),
                              favorites=favorite_data,
                              history=history_data,
