@@ -39,11 +39,12 @@ test('partial and stale states are explicit',async()=>{
     for(const status of ['partial','stale']){
         const d=valid();d.status=status;
         if(status==='partial'){d.coverage.completed=299;d.regions[0].completed_months=11;}
-        else d.coverage.stale=[{}];
+        else d.coverage.stale=[{cadence:'daily'}];
         const {nodes:n,root}=await render(d);
         assert.equal(root.dataset.state,status);
         assert.match(n['data-status'].textContent,status==='partial'?/일부 수집/:/갱신 지연/);
         if(status==='partial')assert.match(n['region-chart'].children[0].children[2].textContent,/일부 11\/12/);
+        else assert.match(n['data-status'].textContent,/최근 3개월 1개/);
     }
 });
 test('uncollected is not zero',async()=>{

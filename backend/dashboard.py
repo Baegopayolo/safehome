@@ -11,13 +11,14 @@ from rental_collector import SOURCE, months_for, utcnow, collect_scope, validate
 from utils import SEOUL_SIGUNGU_CODES, _get_api_key
 
 KST = timezone(timedelta(hours=9))
+RECENT_MONTHS = 3
 
 
 def iso(value):
     return value.replace(tzinfo=timezone.utc).astimezone(KST).isoformat() if value else None
 
 
-def build_dashboard(db, models, today=None, now=None, stale_hours=192):
+def build_dashboard(db, models, today=None, now=None, stale_hours=192, recent_stale_hours=36):
     Region, Transaction, Stat, Log = models
     today = today or datetime.now(KST).date()
     now = now or utcnow()
@@ -44,8 +45,14 @@ def build_dashboard(db, models, today=None, now=None, stale_hours=192):
                 ((l.region_code,l.deal_month) not in covered or
                  l.started_at >= covered[(l.region_code,l.deal_month)][0])]
     missing = [dict(region_code=r, month=m) for r in codes for m in months if (r,m) not in covered]
-    stale = [dict(region_code=r, month=m) for (r,m),(stamp,_) in covered.items()
-             if now - stamp > timedelta(hours=stale_hours)]
+    recent_months = set(months[-RECENT_MONTHS:])
+    stale = []
+    for (region, month), (stamp, _) in covered.items():
+        recent = month in recent_months
+        limit = recent_stale_hours if recent else stale_hours
+        if now - stamp > timedelta(hours=limit):
+            stale.append(dict(region_code=region, month=month, cadence='daily' if recent else 'weekly',
+                              stale_hours=limit, last_updated=iso(stamp)))
     status = ('unavailable' if not covered else 'partial' if missing or failures else
               'stale' if stale else 'complete')
     region_rows = []
@@ -68,7 +75,8 @@ def build_dashboard(db, models, today=None, now=None, stale_hours=192):
         oldest_updated=iso(min(stamps)) if stamps else None,
         computed_at=iso(now),
         coverage={'expected':300, 'completed':len(covered), 'missing':missing,
-                  'stale':stale, 'failures':failures, 'stale_hours':stale_hours},
+                  'stale':stale, 'failures':failures, 'stale_hours':stale_hours,
+                  'recent_stale_hours':recent_stale_hours, 'recent_months':RECENT_MONTHS},
         summary={'region_count':sum(1 for r in region_rows if (r['transaction_count'] or 0)>0) if covered else None,
                  'transaction_count':total, 'fully_collected_regions':sum(r['completed_months']==12 for r in region_rows)},
         regions=region_rows, trends=trends,
@@ -83,7 +91,8 @@ def register_dashboard(app, db):
 
     def respond(kind):
         try:
-            payload = build_dashboard(db, models, stale_hours=app.config.get('DASHBOARD_STALE_HOURS',192))
+            payload = build_dashboard(db, models, stale_hours=app.config.get('DASHBOARD_STALE_HOURS', 192),
+                                      recent_stale_hours=app.config.get('DASHBOARD_RECENT_STALE_HOURS', 36))
             if kind != 'summary':
                 for key in ('summary','regions','trends'):
                     if key != kind:
@@ -143,7 +152,7 @@ def register_dashboard(app, db):
                 latest_ids = db.session.query(func.max(Log.id)).group_by(Log.region_code, Log.deal_month)
                 failed_scopes = {(log.region_code, log.deal_month) for log in
                                  Log.query.filter(Log.id.in_(latest_ids), Log.status == 'failed').all()}
-                scopes = [(r,m) for r,m in scopes if m in months_for(today,3) or
+                scopes = [(r,m) for r,m in scopes if m in months_for(today, RECENT_MONTHS) or
                           db.session.get(Stat,(r,m)) is None or (r,m) in failed_scopes]
             key = _get_api_key(rent=True) or _get_api_key()
             if not key:

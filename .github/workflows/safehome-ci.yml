@@ -1,0 +1,56 @@
+name: SafeHome checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SAFEHOME_TEST_POSTGRES_BIN: /usr/lib/postgresql/18/bin
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements-production.txt
+      - name: Install PostgreSQL 18
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/safehome-pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-18
+      - run: python -m pip install -r requirements-production.txt
+      - run: python -B -m unittest discover -s tests -v
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: node --test tests/test_dashboard_frontend.cjs
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install app and browser dependencies separately
+        run: |
+          python -m venv "$RUNNER_TEMP/safehome-app"
+          "$RUNNER_TEMP/safehome-app/bin/python" -m pip install -r requirements-production.txt
+          python -m pip install playwright==1.64.1
+          python -m playwright install --with-deps chromium
+      - name: Check dashboard in Chromium
+        run: |
+          SAFEHOME_APP_PYTHON="$RUNNER_TEMP/safehome-app/bin/python" python -B tests/browser_dashboard.py

@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up SafeHome PostgreSQL daily
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Asia/Seoul
+Persistent=true
+
+[Install]
+WantedBy=timers.target

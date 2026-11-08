@@ -66,7 +66,9 @@ async function loadDashboardStats() {
             year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(date));
         const labels = {complete:'전체 수집 완료', partial:'일부 수집 · 아래 수치는 수집분 합계입니다',
             stale:'갱신 지연 · 이전 정상 수집 자료를 표시합니다', unavailable:'수집 완료된 자료가 없습니다'};
-        const delayed = data.coverage.stale.length ? ` · 갱신 지연 ${data.coverage.stale.length}개 지역·월` : '';
+        const recentDelayed = data.coverage.stale.filter(scope => scope.cadence === 'daily').length;
+        const delayed = data.coverage.stale.length
+            ? ` · 갱신 지연 ${data.coverage.stale.length}개 지역·월${recentDelayed ? ` (최근 3개월 ${recentDelayed}개)` : ''}` : '';
         const failed = data.coverage.failures.length ? ` · 재수집 실패 또는 진행 중 ${data.coverage.failures.length}개` : '';
         get('data-status').textContent = `${labels[data.status]} (${data.coverage.completed}/300개 지역·월)${delayed}${failed}`;
         get('data-period').textContent = `계약일 범위: ${data.period.from} ~ ${data.period.to} · 현재 월 포함`;

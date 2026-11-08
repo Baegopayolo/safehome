@@ -23,6 +23,7 @@ if not secret_key or not secret_key.strip() or secret_key.strip() in {
 app.config['SECRET_KEY'] = secret_key
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///site.db')
 app.config['DASHBOARD_STALE_HOURS'] = int(os.getenv('DASHBOARD_STALE_HOURS', '192'))
+app.config['DASHBOARD_RECENT_STALE_HOURS'] = int(os.getenv('DASHBOARD_RECENT_STALE_HOURS', '36'))
 app.config['DASHBOARD_LOCK_PATH'] = os.getenv('DASHBOARD_LOCK_PATH')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)

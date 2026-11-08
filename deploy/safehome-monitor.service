@@ -1,0 +1,18 @@
+[Unit]
+Description=Check SafeHome scheduled job deadlines and failures
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/safehome-current
+EnvironmentFile=-/home/ubuntu/.config/safehome-maintenance.env
+ExecStart=/home/ubuntu/safehome-current/venv/bin/python -B deploy/dashboard_maintenance.py monitor
+TimeoutStartSec=90s
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/.local/state/safehome

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 전세사기 예방 플랫폼</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/00_reset.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/01_layout.css') }}">
@@ -92,6 +93,6 @@
 
     <footer><div class="footer-bottom">SafeHome · 공공데이터 기반 전세 계약 확인 도구<br><a href="{{ url_for('about_page') }}">서비스 소개</a> · <a href="{{ url_for('faq_page') }}">자주 묻는 질문</a></div></footer>
     
-    <script src="{{ url_for('static', filename='js/index.js', v='20261108-jeonse') }}"></script>
+    <script src="{{ url_for('static', filename='js/index.js', v='p2-freshness') }}"></script>
 </body>
 </html>

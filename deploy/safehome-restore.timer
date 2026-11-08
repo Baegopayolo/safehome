@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the SafeHome restore drill every Sunday
+
+[Timer]
+OnCalendar=Sun *-*-* 09:30:00 Asia/Seoul
+Persistent=true
+
+[Install]
+WantedBy=timers.target

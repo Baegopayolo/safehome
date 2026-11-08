@@ -85,14 +85,17 @@ def register_operations(app, db):
         temporary = destination.with_suffix(destination.suffix + '.partial')
         fd = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
         os.close(fd)
-        if dialect == 'postgresql':
-            postgres_backup(db.engine.url, temporary)
-        else:
-            with closing(sqlite3.connect(source.as_uri()+'?mode=ro', uri=True)) as src, closing(sqlite3.connect(temporary)) as dst:
-                src.backup(dst)
-                if dst.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
-                    raise click.ClickException('백업 무결성 검사 실패')
-        temporary.rename(destination)
+        try:
+            if dialect == 'postgresql':
+                postgres_backup(db.engine.url, temporary)
+            else:
+                with closing(sqlite3.connect(source.as_uri()+'?mode=ro', uri=True)) as src, closing(sqlite3.connect(temporary)) as dst:
+                    src.backup(dst)
+                    if dst.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                        raise click.ClickException('백업 무결성 검사 실패')
+            temporary.rename(destination)
+        finally:
+            temporary.unlink(missing_ok=True)
         if os.name != 'nt':
             destination.chmod(0o600)
         click.echo(str(destination))
