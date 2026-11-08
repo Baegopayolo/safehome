@@ -2,23 +2,24 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 전세사기 예방 플랫폼</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/00_reset.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/01_layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/02_components.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/03_pages_index.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/03_pages_index.css', v='20261108-jeonse') }}">
 </head>
 <body>
+    {% set hide_sidebars = true %}
     {% include '_navbar.html' %}
-    {% include '_left_sidebar.html' %}
-    {% include '_right_sidebar.html' %}
+
     
     <!-- Hero -->
     <section class="hero">
         <div class="hero-content">
-            <h1>전세 계약, 이제 안심하고 하세요</h1>
-            <p class="hero-subtitle">등기부등본부터 지역 위험도까지, 매물의 안전성을 분석해드립니다</p>
+            <h1>전세 계약 전, 위험 요소부터 확인하세요</h1>
+            <p class="hero-subtitle">공공 실거래 데이터와 계약 체크리스트로 확인이 필요한 항목을 살펴보세요.</p>
             <div class="cta-buttons">
                 <a href="{{ url_for('searchscan_page') }}" class="cta-btn cta-primary">무료로 분석하기</a>
                 <a href="{{ url_for('map_page') }}" class="cta-btn cta-secondary">위험 지역 확인하기</a>
@@ -26,27 +27,35 @@
         </div>
     </section>
 
-    <!-- Quick Stats -->
-    <div class="quick-stats">
+    <section class="quick-stats" aria-labelledby="data-title" data-dashboard-url="{{ url_for('dashboard_summary') }}">
+        <h2 id="data-title">서울 아파트 전세 데이터 현황</h2>
+        <p class="data-description">서울 25개 자치구 · 최근 12개월(현재 월 포함) · 국토교통부 공개 자료</p>
         <div class="stats-wrap">
-            <div class="stat-item">
-                <div class="stat-number" id="total-analyses">-</div>
-                <div class="stat-text">누적 분석 건수</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number" id="accuracy">-</div>
-                <div class="stat-text">위험 예측 정확도</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number" id="avg-analysis-time">-</div>
-                <div class="stat-text">평균 분석 시간</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number" id="blocked-cases">-</div>
-                <div class="stat-text">위험 사례 차단</div>
-            </div>
+            <div class="stat-item"><div class="stat-number" id="region-count">—</div><div class="stat-text">분석 대상 지역 · 시군구</div></div>
+            <div class="stat-item"><div class="stat-number" id="transaction-count">—</div><div class="stat-text">최근 12개월 전세 거래 · 수집분</div></div>
+            <div class="stat-item"><div class="stat-number data-date" id="last-updated">—</div><div class="stat-text">마지막 정상 수집일 · 한국 시간</div></div>
         </div>
-    </div>
+        <p id="data-status" role="status" aria-live="polite">공공데이터 현황을 불러오는 중입니다.</p>
+        <p id="data-period"></p>
+        <button id="retry-stats" type="button" hidden>다시 불러오기</button>
+        <noscript><p>통계 조회에는 JavaScript가 필요합니다. 매물 분석과 자가진단은 아래 링크에서 이용하세요.</p></noscript>
+        <details class="data-method">
+            <summary>출처와 집계 기준 보기</summary>
+            <p><a href="https://www.data.go.kr/data/15126474/openapi.do" target="_blank" rel="noopener noreferrer">국토교통부 아파트 전월세 실거래가 자료</a>에서 서울 25개 자치구의 지역·월별 전체 페이지를 수집합니다.</p>
+            <p>월세가 0원이고 보증금이 양수인 아파트 전세 공개 레코드를 집계합니다. 분석 대상 지역은 해당 기간 유효 거래가 1건 이상인 자치구 수입니다. 현재 월은 진행 중이며, 일부 수집 상태의 숫자는 수집분 합계입니다.</p>
+            <p>동일 공개 필드의 중복 자료와 확인된 취소 거래를 제외합니다. 별개 계약의 공개 필드가 완전히 같으면 구분하지 못할 수 있습니다. 원천 API가 취소 정보를 제공하지 않으면 재수집 때 삭제·정정된 자료로 반영합니다.</p>
+            <p>갱신일은 서버가 수집에 성공한 시각입니다. 신고 지연이 있을 수 있으며, 거래량은 전세사기 위험도나 계약의 안전을 의미하지 않습니다. 전세가율은 이 대시보드에서 계산하지 않습니다.</p>
+        </details>
+    </section>
+
+    <section class="rental-charts" aria-labelledby="charts-title">
+        <h2 id="charts-title">수집된 전세 거래량 살펴보기</h2>
+        <p>막대와 숫자는 같은 집계 결과입니다. ‘미수집’은 0건과 다릅니다.</p>
+        <div class="rental-chart-grid">
+            <article class="dashboard-card"><h3>자치구별 전세 거래량</h3><p id="region-chart-note">불러오는 중입니다.</p><ol id="region-chart" class="bar-list" aria-label="자치구별 전세 거래 건수"></ol></article>
+            <article class="dashboard-card"><h3>월별 전세 거래 추이</h3><p id="trend-chart-note">불러오는 중입니다.</p><ol id="trend-chart" class="bar-list" aria-label="월별 전세 거래 건수"></ol></article>
+        </div>
+    </section>
 
     <!-- 소개 바로가기 섹션 -->
     <div class="intro-cta-section">
@@ -63,84 +72,26 @@
         </div>
     </div>
 
-    <!-- Statistics Dashboard -->
-    <div class="stats-dashboard">
+    <section class="stats-dashboard" aria-labelledby="tools-title">
         <div class="container">
-            <div class="section-header">
-                <h2>2020~2025년 전세사기 현황</h2>
-                <p>실시간 데이터 기반 통계</p>
-            </div>
-            
+            <div class="section-header"><h2 id="tools-title">계약 전, 하나씩 확인하세요</h2><p>데이터 확인부터 계약 점검까지</p></div>
             <div class="dashboard-grid">
-                <div class="dashboard-card">
-                    <div class="dashboard-title">년도별 신고 건수</div>
-                    <div class="dashboard-chart">
-                        <div class="bar-chart" id="yearly-chart">
-                            <div class="bar" style="height: 0%"><span>0</span></div>
-                            <div class="bar" style="height: 0%"><span>0</span></div>
-                            <div class="bar" style="height: 0%"><span>0</span></div>
-                            <div class="bar" style="height: 0%"><span>0</span></div>
-                            <div class="bar" style="height: 0%"><span>0</span></div>
-                            <div class="bar" style="height: 0%"><span>0</span></div>
-                        </div>
-                        <div class="chart-labels" id="yearly-labels">
-                            <span>2020</span>
-                            <span>2021</span>
-                            <span>2022</span>
-                            <span>2023</span>
-                            <span>2024</span>
-                            <span>2025</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="dashboard-card">
-                    <div class="dashboard-title">위험 지역 TOP 5</div>
-                    <div class="danger-ranking" id="danger-ranking">
-                        <div class="rank-item">
-                            <span class="rank-num">-</span>
-                            <span class="rank-region">데이터 로딩 중...</span>
-                            <span class="rank-score">-</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="dashboard-card">
-                    <div class="dashboard-title">주요 위험 요소</div>
-                    <div class="risk-factors">
-                        <div class="factor-item">
-                            <span class="factor-name">과도한 근저당</span>
-                            <div class="factor-bar" style="width: 85%"></div>
-                            <span class="factor-percent">85%</span>
-                        </div>
-                        <div class="factor-item">
-                            <span class="factor-name">시세 대비 저가</span>
-                            <div class="factor-bar" style="width: 72%"></div>
-                            <span class="factor-percent">72%</span>
-                        </div>
-                        <div class="factor-item">
-                            <span class="factor-name">다수 가압류</span>
-                            <div class="factor-bar" style="width: 68%"></div>
-                            <span class="factor-percent">68%</span>
-                        </div>
-                        <div class="factor-item">
-                            <span class="factor-name">경매 이력</span>
-                            <div class="factor-bar" style="width: 54%"></div>
-                            <span class="factor-percent">54%</span>
-                        </div>
-                    </div>
-                </div>
+                <article class="dashboard-card"><h3>매물 분석</h3><p>지역의 실거래와 가격 정보를 살펴보고 추가 확인이 필요한 항목을 확인하세요.</p><a href="{{ url_for('searchscan_page') }}">매물 분석 시작 →</a></article>
+                <article class="dashboard-card"><h3>계약 자가진단</h3><p>계약 서류와 권리관계 등 놓치기 쉬운 확인 항목을 점검하세요.</p><a href="{{ url_for('selfcheck_page') }}">체크리스트 열기 →</a></article>
+                <article class="dashboard-card"><h3>사기 유형 알아보기</h3><p>주요 전세사기 유형과 계약 전 확인할 사항을 알아보세요.</p><a href="{{ url_for('scam_types_page') }}">유형 살펴보기 →</a></article>
             </div>
         </div>
-    </div>
+    </section>
 
     <!-- Final CTA -->
     <div class="final-cta">
         <h2>지금 바로 확인해보세요</h2>
-        <p>전세 계약 전 5초 투자로 수천만원을 지킬 수 있습니다</p>
+        <p>분석 결과는 참고 정보이며, 계약의 안전을 보장하지 않습니다.</p>
         <a href="{{ url_for('searchscan_page') }}" class="cta-btn cta-primary">무료 분석 시작하기</a>
     </div>
 
-    {% include '_footer.html' %}
+    <footer><div class="footer-bottom">SafeHome · 공공데이터 기반 전세 계약 확인 도구<br><a href="{{ url_for('about_page') }}">서비스 소개</a> · <a href="{{ url_for('faq_page') }}">자주 묻는 질문</a></div></footer>
     
-    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/index.js', v='20261108-jeonse') }}"></script>
 </body>
 </html>

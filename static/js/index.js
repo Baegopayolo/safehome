@@ -1,252 +1,98 @@
-function loadTopRiskRegions() {
-    const rankingContainer = document.getElementById('danger-ranking');
-    if (!rankingContainer) return;
-    
-    fetch('/heatmap')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('API 호출 실패');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                rankingContainer.innerHTML = '<div class="rank-item"><span class="rank-region">데이터가 없습니다</span></div>';
-                return;
-            }
-            
-            // 전세가율 80% 이상인 위험 지역만 필터링 (score는 전세가율을 의미)
-            const dangerousRegions = data.filter(region => {
-                const score = region.score || 0;
-                // 전세가율 80% 이상이면 위험 지역
-                return score >= 80;
-            })
-            .sort((a, b) => (b.score || 0) - (a.score || 0))
-            .slice(0, 5);
-            
-            if (dangerousRegions.length === 0) {
-                rankingContainer.innerHTML = '<div class="rank-item"><span class="rank-region">위험 지역 데이터가 없습니다</span></div>';
-                return;
-            }
-            
-            rankingContainer.innerHTML = dangerousRegions.map((region, index) => {
-                const rank = index + 1;
-                const jeonseRate = region.score || 0;
-                const scoreClass = 'danger'; // 위험 지역이므로 항상 danger 클래스
-                return `<div class="rank-item">
-                    <span class="rank-num">${rank}</span>
-                    <span class="rank-region">${region.region}</span>
-                    <span class="rank-score ${scoreClass}">${jeonseRate.toFixed(1)}%</span>
-                </div>`;
-            }).join('');
-        })
-        .catch(error => {
-            console.error('위험 지역 데이터 로드 실패:', error);
-            rankingContainer.innerHTML = '<div class="rank-item"><span class="rank-region">데이터를 불러올 수 없습니다</span></div>';
-        });
-}
-
-function loadYearlyStats() {
-    const chartContainer = document.getElementById('yearly-chart');
-    fetch('/api/yearly-reports')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('API 호출 실패');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                console.warn('년도별 데이터가 없습니다');
-                return;
-            }
-            const maxCount = Math.max(...data.map(item => item.count), 1);
-            chartContainer.innerHTML = data.map(item => {
-                const heightPercent = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
-                return `<div class="bar" style="height: ${heightPercent}%"><span>${item.count}</span></div>`;
-            }).join('');
-        })
-        .catch(error => {
-            console.error('년도별 통계 로드 실패:', error);
-        });
-}
-
-function loadMainStats() {
-    fetch('/api/stats')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('API 호출 실패');
-            }
-            return response.json();
-        })
-        .then(data => {
-            function formatNumber(num) {
-                if (num === null || num === undefined) return '0';
-                return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            }
-            const totalAnalysesEl = document.getElementById('total-analyses');
-            if (totalAnalysesEl) {
-                totalAnalysesEl.textContent = formatNumber(data.total_analyses || 0);
-            }
-            const accuracyEl = document.getElementById('accuracy');
-            if (accuracyEl) {
-                accuracyEl.textContent = (data.accuracy || 0).toFixed(1) + '%';
-            }
-            const avgTimeEl = document.getElementById('avg-analysis-time');
-            if (avgTimeEl) {
-                avgTimeEl.textContent = (data.avg_analysis_time || 0).toFixed(1) + '초';
-            }
-            const blockedCasesEl = document.getElementById('blocked-cases');
-            if (blockedCasesEl) {
-                blockedCasesEl.textContent = formatNumber(data.blocked_cases || 0);
-            }
-        })
-        .catch(error => {
-            console.error('메인 페이지 통계 로드 실패:', error);
-            const totalAnalysesEl = document.getElementById('total-analyses');
-            if (totalAnalysesEl) totalAnalysesEl.textContent = '0';
-            const accuracyEl = document.getElementById('accuracy');
-            if (accuracyEl) accuracyEl.textContent = '0%';
-            const avgTimeEl = document.getElementById('avg-analysis-time');
-            if (avgTimeEl) avgTimeEl.textContent = '0초';
-            const blockedCasesEl = document.getElementById('blocked-cases');
-            if (blockedCasesEl) blockedCasesEl.textContent = '0';
-        });
-}
-
-function openReviewModal() {
-    const modal = document.getElementById('review-modal');
-    if (modal) {
-        modal.style.display = 'flex';
-        modal.style.position = 'fixed';
-        modal.style.top = '0';
-        modal.style.left = '0';
-        modal.style.width = '100%';
-        modal.style.height = '100%';
-        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        modal.style.zIndex = '10000';
-        modal.style.alignItems = 'center';
-        modal.style.justifyContent = 'center';
+/* A single summary response includes both chart series from the same DB query. */
+function validDashboard(data) {
+    const count = n => n === null || (Number.isSafeInteger(n) && n >= 0);
+    if (!['complete','partial','stale','unavailable'].includes(data.status) ||
+        !data.summary || !data.coverage || !data.period ||
+        !count(data.summary.transaction_count) || !count(data.summary.region_count) ||
+        !Number.isInteger(data.coverage.completed) || data.coverage.completed < 0 || data.coverage.completed > 300 ||
+        data.coverage.expected !== 300 || !Array.isArray(data.regions) || data.regions.length !== 25 ||
+        !Array.isArray(data.trends) || data.trends.length !== 12 ||
+        !Array.isArray(data.coverage.stale) || !Array.isArray(data.coverage.failures)) return false;
+    if (data.status !== 'unavailable' && (!data.last_updated || !Number.isFinite(Date.parse(data.last_updated)) ||
+        !data.oldest_updated || !Number.isFinite(Date.parse(data.oldest_updated)))) return false;
+    if (!data.regions.every(r => typeof r.name === 'string' && count(r.transaction_count) &&
+        Number.isInteger(r.completed_months) && r.completed_months >= 0 && r.completed_months <= 12) ||
+        !data.trends.every(r => /^\d{6}$/.test(r.month) && count(r.transaction_count) &&
+        Number.isInteger(r.completed_regions) && r.completed_regions >= 0 && r.completed_regions <= 25)) return false;
+    if (data.summary.transaction_count !== null) {
+        const sum = rows => rows.reduce((n,r) => n + (r.transaction_count ?? 0), 0);
+        if (sum(data.regions) !== data.summary.transaction_count || sum(data.trends) !== data.summary.transaction_count) return false;
     }
+    return true;
 }
 
-function closeReviewModal() {
-    const modal = document.getElementById('review-modal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-    document.getElementById('review-form').reset();
-    document.getElementById('review-rating').value = '0';
-    document.querySelectorAll('#rating-stars .star').forEach(star => {
-        star.style.color = '#ddd';
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    loadMainStats();
-    loadTopRiskRegions();
-    loadYearlyStats();
-    
-    // 위험 지역 실시간 업데이트 (30초마다)
-    let riskRegionsUpdateInterval = setInterval(() => {
-        loadTopRiskRegions();
-    }, 30000); // 30초마다 업데이트
-    
-    // 페이지가 보일 때만 업데이트 (탭 전환 시 중지/재개)
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            // 페이지가 숨겨지면 업데이트 중지
-            if (riskRegionsUpdateInterval) {
-                clearInterval(riskRegionsUpdateInterval);
-                riskRegionsUpdateInterval = null;
-            }
-        } else {
-            // 페이지가 보이면 즉시 업데이트하고 주기적 업데이트 재개
-            loadTopRiskRegions();
-            if (!riskRegionsUpdateInterval) {
-                riskRegionsUpdateInterval = setInterval(() => {
-                    loadTopRiskRegions();
-                }, 30000);
-            }
+function drawBars(id, rows, label, coverage, expected) {
+    const chart = document.getElementById(id);
+    chart.replaceChildren();
+    const max = Math.max(1, ...rows.map(r => r.transaction_count ?? 0));
+    for (const row of rows) {
+        const li = document.createElement('li');
+        const name = document.createElement('span');
+        name.className = 'bar-label'; name.textContent = label(row);
+        const track = document.createElement('span'); track.className = 'bar-track';
+        track.setAttribute('aria-hidden','true');
+        const fill = document.createElement('span'); fill.className = 'bar-fill';
+        fill.style.width = ((row.transaction_count ?? 0) / max * 100) + '%';
+        track.append(fill);
+        const value = document.createElement('span'); value.className = 'bar-value';
+        value.textContent = row.transaction_count === null ? '미수집' : row.transaction_count.toLocaleString('ko-KR') + '건';
+        if (row[coverage] < expected && row.transaction_count !== null) {
+            value.textContent += ` (일부 ${row[coverage]}/${expected})`;
+            li.className = 'partial-bar';
         }
-    });
-    const writeReviewBtn = document.getElementById('write-review-btn');
-    if (writeReviewBtn) {
-        writeReviewBtn.addEventListener('click', function() {
-            fetch('/api/reviews')
-                .then(() => openReviewModal())
-                .catch(() => {
-                    if (confirm('리뷰를 작성하려면 로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?')) {
-                        window.location.href = '/login';
-                    }
-                });
-        });
+        li.append(name, track, value); chart.append(li);
     }
-    const ratingStarsContainer = document.getElementById('rating-stars');
-    if (ratingStarsContainer) {
-        document.querySelectorAll('#rating-stars .star').forEach(star => {
-            star.addEventListener('click', function() {
-                const rating = parseInt(this.dataset.rating);
-                document.getElementById('review-rating').value = rating;
-                document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
-                    s.style.color = index < rating ? '#ffc107' : '#ddd';
-                });
-            });
-            star.addEventListener('mouseenter', function() {
-                const rating = parseInt(this.dataset.rating);
-                document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
-                    s.style.color = index < rating ? '#ffc107' : '#ddd';
-                });
-            });
-        });
-        ratingStarsContainer.addEventListener('mouseleave', function() {
-            const currentRating = parseInt(document.getElementById('review-rating').value) || 0;
-            document.querySelectorAll('#rating-stars .star').forEach((s, index) => {
-                s.style.color = index < currentRating ? '#ffc107' : '#ddd';
-            });
-        });
-    }
-    const reviewForm = document.getElementById('review-form');
-    if (reviewForm) {
-        reviewForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const region = document.getElementById('review-region').value.trim();
-            const rating = parseInt(document.getElementById('review-rating').value);
-            const content = document.getElementById('review-content').value.trim();
-            if (!region) {
-                alert('지역명을 입력해주세요.');
-                return;
-            }
-            if (rating === 0) {
-                alert('평점을 선택해주세요.');
-                return;
-            }
-            if (!content) {
-                alert('리뷰 내용을 입력해주세요.');
-                return;
-            }
-            fetch('/api/reviews', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ region: region, rating: rating, content: content })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alert('리뷰가 등록되었습니다. 마이페이지에서 확인하실 수 있습니다.');
-                        closeReviewModal();
-                    } else {
-                        alert(data.error || '리뷰 등록에 실패했습니다.');
-                        if (data.error && data.error.includes('로그인')) {
-                            window.location.href = '/login';
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('리뷰 등록 오류:', error);
-                    alert('리뷰 등록 중 오류가 발생했습니다.');
-                });
-        });
-    }
+}
+
+async function loadDashboardStats() {
+    const root = document.querySelector('[data-dashboard-url]');
+    if (!root) return;
+    const get = id => document.getElementById(id);
+    get('retry-stats').hidden = true;
+    get('data-status').textContent = '공공데이터 현황을 불러오는 중입니다.';
+    ['region-count','transaction-count','last-updated'].forEach(id => { get(id).textContent = '—'; });
+    get('data-period').textContent = '';
+    ['region-chart','trend-chart'].forEach(id => get(id).replaceChildren());
+    ['region-chart-note','trend-chart-note'].forEach(id => { get(id).textContent = '불러오는 중입니다.'; });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+        const response = await fetch(root.dataset.dashboardUrl, {signal:controller.signal, cache:'no-store'});
+        if (!response.ok) throw new Error('API failed');
+        const data = await response.json();
+        if (!validDashboard(data)) throw new Error('Invalid summary');
+        root.dataset.state = data.status;
+        const formatDate = date => new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',
+            year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(date));
+        const labels = {complete:'전체 수집 완료', partial:'일부 수집 · 아래 수치는 수집분 합계입니다',
+            stale:'갱신 지연 · 이전 정상 수집 자료를 표시합니다', unavailable:'수집 완료된 자료가 없습니다'};
+        const delayed = data.coverage.stale.length ? ` · 갱신 지연 ${data.coverage.stale.length}개 지역·월` : '';
+        const failed = data.coverage.failures.length ? ` · 재수집 실패 또는 진행 중 ${data.coverage.failures.length}개` : '';
+        get('data-status').textContent = `${labels[data.status]} (${data.coverage.completed}/300개 지역·월)${delayed}${failed}`;
+        get('data-period').textContent = `계약일 범위: ${data.period.from} ~ ${data.period.to} · 현재 월 포함`;
+        if (data.status === 'unavailable') {
+            get('last-updated').textContent = '수집 전';
+            ['region-chart-note','trend-chart-note'].forEach(id => { get(id).textContent = '아직 정상 수집된 자료가 없어 차트를 표시하지 않습니다.'; });
+            return;
+        }
+        get('region-count').textContent = data.summary.region_count.toLocaleString('ko-KR') + '개';
+        get('transaction-count').textContent = data.summary.transaction_count.toLocaleString('ko-KR') + '건';
+        get('last-updated').textContent = formatDate(data.last_updated);
+        get('data-period').textContent += ` · 가장 오래된 갱신: ${formatDate(data.oldest_updated)}`;
+        const note = data.summary.transaction_count === 0 ? '수집된 범위의 유효 전세 거래는 0건입니다.' : '일부 수집 범위는 따로 표시합니다.';
+        ['region-chart-note','trend-chart-note'].forEach(id => { get(id).textContent = note; });
+        drawBars('region-chart', data.regions, r=>r.name, 'completed_months',12);
+        drawBars('trend-chart', data.trends, r=>r.month.slice(0,4)+'.'+r.month.slice(4), 'completed_regions',25);
+    } catch (error) {
+        root.dataset.state = 'error';
+        get('data-status').textContent = '통계를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+        ['region-count','transaction-count','last-updated'].forEach(id => { get(id).textContent = '—'; });
+        ['region-chart-note','trend-chart-note'].forEach(id => { get(id).textContent = '통계 조회에 실패했습니다.'; });
+        get('retry-stats').hidden = false;
+    } finally { clearTimeout(timeout); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('retry-stats')?.addEventListener('click', loadDashboardStats);
+    loadDashboardStats();
 });

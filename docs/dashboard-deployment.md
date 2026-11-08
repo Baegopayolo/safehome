@@ -1,0 +1,107 @@
+# SafeHome 운영 배포 및 복구
+
+## 실제 확인한 운영 환경 (2026-11-08)
+
+- Ubuntu EC2, 운영 프로젝트: `/home/ubuntu/safehome`
+- 웹 서비스: `safehome.service`, 사용자 `ubuntu`
+- 실행: `/home/ubuntu/safehome/venv/bin/gunicorn --chdir /home/ubuntu/safehome/backend --workers 3 --bind 127.0.0.1:8000 app:app`
+- Nginx가 외부 HTTPS 요청을 처리합니다. 기존 프록시 및 소셜 로그인 설정을 유지합니다.
+- **운영 DB는 PostgreSQL 18.3입니다.** 저장소의 SQLite 기본값과 다르며, 기존 `DATABASE_URL`을 그대로 사용합니다.
+- `pg_dump`/`pg_restore` 18.6을 확인했습니다. 웹 서버 코드 배포로 DB 파일을 덮어쓰는 방식이 아닙니다.
+- 서버에만 있던 ProxyFix, OAuth 경로, 관리자 권한, 검색·알림 권한 수정은 보존합니다. GitHub 저장소를 강제로 초기화하여 배포하지 마세요.
+
+## 환경 변수 및 키
+
+기존 웹 서비스에 설정된 승인 키로 실제 전세 API 응답을 확인했습니다. 자동 수집은
+`/home/ubuntu/.config/safehome-dashboard.env`를 읽습니다. 파일은 `ubuntu` 소유, 권한 600이며
+실제 값은 문서·Git·브라우저·명령행 인자에 넣지 않습니다. 키 변경 시 웹 서비스와 수집 환경 파일을 함께 갱신하세요.
+
+- `DATABASE_URL`: 기존 PostgreSQL 접속 설정 유지
+- `SECRET_KEY`: 기존 값 유지
+- `MOLIT_RENT_API_KEY`: 국토교통부 아파트 전월세 API 승인 키
+- `MOLIT_API_KEY`: 전월세 활용 권한이 있을 때만 대체 키로 사용
+- `DASHBOARD_STALE_HOURS=192`: 8일 신선도 기준
+- `DASHBOARD_LOCK_PATH=/home/ubuntu/safehome/backend/instance/dashboard.lock`
+
+환경 파일은 systemd가 읽도록 작성했습니다. 비밀번호의 특수문자를 셸에서 확장하지 않도록
+임의로 `source`하거나 내용을 화면에 출력하지 마세요. `.env.example`은 설정 이름 안내이며
+현재 운영 DB를 새 빈 SQLite DB로 바꾸라는 뜻이 아닙니다.
+
+## 백업과 마이그레이션
+
+이번 배포 전 소스·서비스 설정·DB 백업 디렉터리:
+`/home/ubuntu/safehome-backups/dashboard-20261108`
+
+- `source-before.tar.gz`: 배포 전 소스와 로컬 설정. 비밀 설정이 포함될 수 있으므로 외부에 공유하지 않습니다.
+- `safehome.service.before`: 기존 웹 서비스 설정 백업
+- `safehome-*.dump`: PostgreSQL custom-format 백업
+
+`backup-db`는 PostgreSQL에서 `pg_dump`를 실행하고 `pg_restore`로 전체 아카이브를 읽어 검증합니다.
+이 검증은 DB에 복원 쿼리를 실행하지 않습니다. 실제 장애 복구 훈련과는 구별됩니다.
+접속 비밀번호는 자식 프로세스 환경으로만 전달하고 오류에는 원문 URL을 출력하지 않습니다.
+검증 전 파일은 `.partial`, 검증 완료 파일만 `.dump`로 확정합니다.
+
+DB 마이그레이션은 기존 회원·리뷰·매매 테이블을 건드리지 않고 신규 전세 테이블을 추가합니다.
+실제 PostgreSQL에서 `db upgrade`와 `db check`를 확인했습니다. legacy baseline downgrade는
+기존 사용자 데이터를 보호하기 위해 비활성화되어 있습니다.
+
+환경 파일을 사용하여 운영 명령을 실행하려면 예를 들어 다음처럼 systemd의 임시 작업을 사용합니다.
+작업 디렉터리는 프로젝트 루트이며 같은 가상환경과 DB 설정을 사용해야 합니다.
+
+```bash
+sudo systemd-run --wait --pipe --collect \
+  -p User=ubuntu \
+  -p WorkingDirectory=/home/ubuntu/safehome \
+  -p EnvironmentFile=/home/ubuntu/.config/safehome-dashboard.env \
+  /home/ubuntu/safehome/venv/bin/python -m flask --app backend/app check-data-storage
+```
+
+마지막 명령 부분을 `db check`, `backup-db --directory /home/ubuntu/safehome-backups/manual`,
+`sync-dashboard --region 11110 --month 202610` 등으로 바꿀 수 있습니다. `db upgrade`는 항상
+백업과 변경 검토 후 수행하세요. 표본 월은 예시이며 실제 필요한 월로 지정합니다.
+
+## 주기적 수집
+
+설정 파일은 `deploy/safehome-collect.service`, `deploy/safehome-collect.timer`입니다.
+운영 경로와 사용자에 맞춰 작성되어 있으며 웹 프로세스 안에서 스케줄러를 실행하지 않습니다.
+
+- 한국 시간 매일 03:10 이후 0~5분 지연 실행
+- 월~토: 최근 3개월 + 미수집·최신 실패 범위
+- 일요일: 최근 12개월 전체
+- 수집 전 DB 연결 검사와 PostgreSQL 백업
+- 정기 백업 위치: `/home/ubuntu/safehome-backups/scheduled`
+- 파일 잠금으로 동시 수집 차단, 실패 시 이전 정상 자료 보존
+
+```bash
+systemctl status safehome-collect.timer
+systemctl list-timers safehome-collect.timer
+journalctl -u safehome-collect.service
+sudo systemctl start safehome-collect.service
+```
+
+`ProtectHome=read-only`를 사용하므로 `/home/ubuntu`의 코드·환경은 읽을 수 있고 지정된
+`backend/instance`와 백업 디렉터리만 쓸 수 있습니다. 비밀 설정이나 파일 경로를 변경하면
+환경 파일과 `ReadWritePaths`도 함께 확인하세요.
+
+## 완료 확인 및 장애 대응
+
+`https://safehome-kr.com/api/dashboard/data-status`에서 `status=complete`,
+`coverage.completed=300`, 실패·미수집 범위가 없는지 확인합니다. 현재 월은 진행 중이며
+원천 자료의 신고 지연은 이 범위 검증만으로 해결되지 않습니다.
+
+웹 배포는 전체 수집 검증 후 필요한 파일만 교체하고 `safehome.service`를 재시작합니다.
+로그인·개인정보처리방침·매물 분석·지도 및 기존 OAuth/관리자 경로를 보존해야 합니다.
+코드 롤백 시 배포 전 소스 중 변경한 파일만 복구하고 웹 서비스를 재시작합니다.
+추가된 전세 테이블은 기존 코드에 영향을 주지 않으므로 코드 롤백 때문에 운영 DB 전체를
+과거 백업으로 되돌려 새 회원·리뷰를 잃지 않도록 주의하세요.
+
+실제 DB 복구는 웹·수집 작업을 중지하고 현재 DB도 백업한 뒤 별도 검증 환경에서 복원을
+확인하고 진행합니다. 운영 DB에 `pg_restore --clean`을 무심코 실행하지 마세요.
+백업 저장 공간을 감시하고 별도 디스크/원격 보관 및 보존 기간을 설정하세요.
+이 작업은 기존 관리형 DB의 자동 백업 보존 정책을 변경하지 않습니다.
+
+## 로컬 SQLite 개발
+
+`DATABASE_URL`이 없을 때만 로컬 기본값 `backend/instance/site.db`를 사용합니다.
+`backup-db`는 SQLite backup API와 `PRAGMA integrity_check`도 계속 지원합니다.
+테스트는 메모리/임시 SQLite DB에서 실행하며 운영 거래를 모의 데이터로 채우지 않습니다.

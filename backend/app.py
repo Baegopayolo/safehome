@@ -10,8 +10,10 @@ import os
 app = Flask(__name__, template_folder='../frontend', static_folder='../static')
 CORS(app)
 os.environ['TZ'] = 'Asia/Seoul'
-app.config['SECRET_KEY'] = 'your_very_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your_very_secret_key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///site.db')
+app.config['DASHBOARD_STALE_HOURS'] = int(os.getenv('DASHBOARD_STALE_HOURS', '192'))
+app.config['DASHBOARD_LOCK_PATH'] = os.getenv('DASHBOARD_LOCK_PATH')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 bcrypt = Bcrypt(app)
@@ -45,9 +47,10 @@ from routes import pages, auth, api
 pages.register_page_routes(app)
 auth.register_auth_routes(app, db, bcrypt)
 api.register_api_routes(app, db)
+from dashboard import register_dashboard
+register_dashboard(app, db)
 
-with app.app_context():
-    db.create_all()
+# Schema changes are explicit: run flask db upgrade before starting the app.
 
 if __name__ == '__main__':
     app.run(debug=True)

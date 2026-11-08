@@ -132,6 +132,7 @@ def register_api_routes(app, db):
             return jsonify({'success': True, 'message': f'{len(updated_data)}개 지역 데이터가 전세가율 기반으로 업데이트되었습니다.'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+    @app.route('/api/analyze')
     @app.route('/analyze')
     def analyze():
         try:
@@ -522,19 +523,10 @@ def register_api_routes(app, db):
     def stats():
         total_analyses = SearchHistory.query.count()
         total_reports = Report.query.count()
-        heatmap_data = get_heatmap_data(db, HeatmapData, RealTransaction, force_update=False)
-        high_risk_regions = len([r for r in heatmap_data if r.get('score', 0) >= 80])
-        total_regions = len(heatmap_data) if heatmap_data else 1
-        accuracy = 95.0
-        if high_risk_regions > 0 and total_reports > 0:
-            report_ratio = min(total_reports / (high_risk_regions * 10), 1.0)
-            accuracy = 90.0 + (report_ratio * 7.2)
-        avg_analysis_time = 4.8
+        high_risk_regions = HeatmapData.query.filter(HeatmapData.score >= 80).count()
+        total_regions = HeatmapData.query.count()
         return jsonify({
             'total_analyses': total_analyses,
-            'accuracy': round(accuracy, 1),
-            'avg_analysis_time': avg_analysis_time,
-            'blocked_cases': total_reports,
             'total_searches': total_analyses,
             'total_reports': total_reports,
             'high_risk_regions': high_risk_regions,

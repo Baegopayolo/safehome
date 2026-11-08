@@ -50,3 +50,37 @@ footer{background:#1f2937;color:#d1d5db;padding:60px 20px 30px}
 .intro-cta-section h3{color:#1f2937;font-size:28px;font-weight:700;margin-bottom:16px}
 .intro-cta-section p{color:#6b7280;font-size:16px;margin-bottom:32px;line-height:1.6}
 @media (max-width:768px){.hero h1{font-size:32px}.hero-subtitle{font-size:16px}.final-cta h2{font-size:28px}.alert-item{flex-direction:column;align-items:flex-start}.stats-wrap{gap:20px}.stat-item{flex:1 1 calc(50% - 10px)}}
+
+/* Verified public-data summary */
+.quick-stats h2,.data-description,#data-status,#data-period{text-align:center}
+.quick-stats h2{font-size:28px;margin-bottom:12px}
+.data-description{color:#4b5563;margin-bottom:32px}
+#data-status{margin-top:28px;line-height:1.7}
+#data-period{color:#4b5563;margin:12px auto;max-width:900px;line-height:1.7}
+.quick-stats .stat-item{flex:1;min-width:200px;text-align:center}
+.data-date{font-size:24px;line-height:1.5;max-width:260px;margin:auto}
+.data-method{max-width:900px;margin:24px auto 0;padding:20px;background:white;border:1px solid #d1d5db;border-radius:12px;line-height:1.8}
+.data-method summary{cursor:pointer;font-weight:600}
+.data-method p{margin-top:12px}
+.data-method a,.dashboard-card a{color:#1255a3;text-decoration:underline}
+#retry-stats{display:block;margin:16px auto;padding:12px 24px;border:1px solid #1565c0;border-radius:8px;background:white;color:#1255a3;cursor:pointer}
+#retry-stats[hidden]{display:none}
+.dashboard-card h3{font-size:22px;margin-bottom:16px}
+.dashboard-card p{line-height:1.8;margin-bottom:20px;color:#4b5563}
+@media(max-width:768px){.dashboard-grid{grid-template-columns:1fr}.hero{padding:64px 20px}.stats-wrap{flex-direction:column}.quick-stats .stat-item{flex:auto}.site-header .nav{gap:12px}.site-header{flex-wrap:wrap;gap:12px}}
+
+.rental-charts{max-width:1180px;margin:auto;padding:48px 20px}
+.rental-charts>h2{font-size:28px;margin-bottom:12px}
+.rental-charts>p{color:#4b5563;line-height:1.7;margin-bottom:24px}
+.rental-chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.bar-list{list-style:none;padding:0;margin:0}
+.bar-list li{display:grid;grid-template-columns:70px minmax(30px,1fr) 100px;gap:10px;align-items:center;margin:14px 0;font-size:13px}
+.bar-track{height:14px;background:#edf2f7;border-radius:4px;overflow:hidden}
+.bar-fill{display:block;height:100%;background:#1565c0;border-radius:4px}
+.bar-value{text-align:right;font-variant-numeric:tabular-nums;line-height:1.4}
+.partial-bar .bar-fill{background:#ab6900}
+.quick-stats[data-state=partial] #data-status,.quick-stats[data-state=stale] #data-status{color:#854d0e}
+.quick-stats[data-state=error] #data-status{color:#b91c1c}
+.hero h1{word-break:keep-all;text-wrap:balance}
+.quick-stats h2,.rental-charts>h2{word-break:keep-all;text-wrap:balance}
+@media(max-width:768px){.rental-chart-grid{grid-template-columns:1fr}.rental-charts .dashboard-card{padding:20px 12px}.bar-list li{grid-template-columns:64px minmax(24px,1fr) 92px;gap:6px}.rental-charts{padding:32px 12px}.hero h1{font-size:clamp(26px,6vw,32px)}}

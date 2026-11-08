@@ -16,6 +16,7 @@ def init_models(database):
         username = db.Column(db.String(64), unique=True, nullable=False)
         password = db.Column(db.String(128), nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=True)
+        is_admin = db.Column(db.Boolean, default=False, nullable=False)
         created_at = db.Column(db.DateTime, default=_get_kst_now)
         search_history = db.relationship('SearchHistory', backref='user', lazy=True)
         favorites = db.relationship('Favorite', backref='user', lazy=True)

@@ -1,5 +1,6 @@
 *# 가상환경
 venv/
+.venv-codex/
 env/
 .env
 
@@ -20,3 +21,6 @@ instance/
 
 # 로그 파일
 *.log
+
+# Local release archives (never commit credentials or deployment bundles)
+deployment-artifacts/
