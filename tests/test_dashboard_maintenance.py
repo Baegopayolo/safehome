@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 import os
 from pathlib import Path
 import sys
@@ -11,6 +12,28 @@ import dashboard_maintenance as maintenance
 
 
 class MaintenanceTests(unittest.TestCase):
+    def test_email_notification_uses_only_the_configured_sns_topic(self):
+        topic = 'arn:aws:sns:ap-southeast-2:123456789012:safehome-ops-alerts'
+        with patch.dict(os.environ, {'SAFEHOME_ALERT_SNS_TOPIC_ARN': topic, 'SAFEHOME_ALERT_WEBHOOK': ''}), \
+             patch.object(maintenance, 'command') as command:
+            maintenance.notify('SafeHome: collect 실패')
+            args = command.call_args.args[0]
+            self.assertEqual(args[:3], ['aws', 'sns', 'publish'])
+            self.assertEqual(args[args.index('--region') + 1], 'ap-southeast-2')
+            self.assertEqual(args[args.index('--topic-arn') + 1], topic)
+            self.assertEqual(args[args.index('--message') + 1], 'SafeHome: collect 실패')
+
+    def test_conflicting_alert_channels_fail_before_sending(self):
+        topic = 'arn:aws:sns:ap-southeast-2:123456789012:safehome-ops-alerts'
+        with patch.dict(os.environ, {'SAFEHOME_ALERT_SNS_TOPIC_ARN': topic,
+                                    'SAFEHOME_ALERT_WEBHOOK': 'https://example.org/test'}), \
+             patch.object(maintenance, 'command') as command, \
+             patch.object(maintenance.urllib.request, 'urlopen') as urlopen:
+            with self.assertRaisesRegex(RuntimeError, '한 가지'):
+                maintenance.notify('test')
+            command.assert_not_called()
+            urlopen.assert_not_called()
+
     def test_daily_deadline_and_weekly_schedule_in_korea_time(self):
         kst = maintenance.KST
         previous = datetime(2026, 11, 7, 4, tzinfo=kst)
@@ -56,9 +79,42 @@ class MaintenanceTests(unittest.TestCase):
             directory = Path(tmp)
             archive = directory/'safehome-20261108T013000000000Z.dump'
             archive.write_bytes(b'archive')
-            with patch.dict(os.environ, {'SAFEHOME_BACKUP_S3_BUCKET': 'test'}), \
+            with patch.dict(os.environ, {'SAFEHOME_BACKUP_S3_BUCKET': 'test',
+                                        'SAFEHOME_BACKUP_S3_ACCOUNT_ID': '123456789012'}), \
                  patch.object(maintenance, 'command', side_effect=[str(archive), '', 'wrong']), \
                  patch.object(maintenance, 'prune') as prune:
                 with self.assertRaisesRegex(RuntimeError, '체크섬 불일치'):
                     maintenance.daily_backup(directory)
                 prune.assert_not_called()
+
+    def test_remote_restore_works_without_a_local_backup_directory(self):
+        prefix = 'safehome/postgres/'
+        name = 'safehome-20261108T013000000000Z.dump'
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            source = directory/'fixture'
+            source.write_bytes(b'archive')
+            digest = maintenance.checksum(source)
+
+            def aws(args):
+                self.assertEqual(args[args.index('--expected-bucket-owner') + 1], '123456789012')
+                if args[2] == 'list-objects-v2':
+                    self.assertEqual(args[args.index('--prefix') + 1], prefix)
+                    return json.dumps({'Contents': [
+                        {'Key': prefix + 'safehome-20261107T013000000000Z.dump'},
+                        {'Key': prefix + name}, {'Key': prefix + 'unrelated.dump'},
+                    ]})
+                self.assertEqual(args[args.index('--key') + 1], prefix + name)
+                if args[2] == 'head-object':
+                    return digest
+                self.assertEqual(args[2], 'get-object')
+                Path(args[-1]).write_bytes(source.read_bytes())
+                return ''
+
+            with patch.dict(os.environ, {'SAFEHOME_BACKUP_S3_BUCKET': 'test',
+                                        'SAFEHOME_BACKUP_S3_ACCOUNT_ID': '123456789012',
+                                        'SAFEHOME_BACKUP_S3_PREFIX': prefix}), \
+                 patch.object(maintenance, 'command', side_effect=aws), \
+                 patch.object(maintenance, 'verify_restore') as verify:
+                maintenance.restore_drill(directory/'absent', directory)
+                self.assertEqual(verify.call_args.args[0].name, name)

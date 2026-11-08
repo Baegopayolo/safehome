@@ -111,12 +111,13 @@ sudo systemctl start safehome-collect.service
 
 운영 선택 설정은 권한 600인 `/home/ubuntu/.config/safehome-maintenance.env`에 둡니다.
 
-- `SAFEHOME_ALERT_WEBHOOK`: `{"text":"..."}` 형식의 POST를 받는 HTTPS 주소. 미설정 시 `journalctl -u safehome-monitor.service`에서 알림을 확인합니다.
+- `SAFEHOME_ALERT_SNS_TOPIC_ARN`: 이메일 구독이 확인된 SNS 표준 주제 ARN. 운영 EC2 역할에는 해당 주제의 `sns:Publish` 권한만 부여합니다. 구독 이메일 주소는 SNS에서 관리합니다.
+- `SAFEHOME_ALERT_WEBHOOK`: `{"text":"..."}` 형식의 POST를 받는 HTTPS 주소. SNS와 웹훅 중 하나를 설정합니다. 둘 다 미설정이면 `journalctl -u safehome-monitor.service`에서 알림을 확인합니다.
 - `SAFEHOME_BACKUP_RETENTION_DAYS=30`, `SAFEHOME_BACKUP_MINIMUM=7`: 자동 생성한 로컬 PostgreSQL 백업의 보존 기간과 최소 보존 개수. 원격 저장을 설정했을 때는 새 복사본을 검증한 후에만 만료본을 정리합니다.
-- `SAFEHOME_BACKUP_S3_BUCKET`, `SAFEHOME_BACKUP_S3_PREFIX=safehome/postgres`: 호스트 밖 복사본을 둘 비공개 버킷과 접두사. AWS CLI v2와 해당 접두사에 대한 IAM 읽기·쓰기 권한이 필요합니다. 서버 측 암호화를 적용하고 SHA-256으로 업로드와 복원용 다운로드를 검증합니다. 버킷의 원격 만료 정책은 S3에서 별도로 설정합니다.
+- `SAFEHOME_BACKUP_S3_BUCKET`, `SAFEHOME_BACKUP_S3_ACCOUNT_ID`, `SAFEHOME_BACKUP_S3_PREFIX=safehome/postgres`, `AWS_DEFAULT_REGION`: 비공개 버킷, 소유 계정, 접두사와 리전입니다. AWS CLI v2 및 EC2 역할에 해당 접두사의 `ListBucket`과 백업 객체의 `GetObject`·`PutObject` 권한이 필요합니다. 모든 S3 요청에서 버킷 소유 계정을 확인하고 서버 측 암호화와 SHA-256을 사용합니다. 원격 만료 정책은 S3에서 설정합니다.
 - `SAFEHOME_PG_BINDIR=/usr/lib/postgresql/18/bin`: 복원 훈련에 사용할 PostgreSQL 서버·클라이언트 도구의 경로. `initdb`와 `pg_ctl`을 포함한 운영과 같은 메이저 버전이 필요합니다.
 
-백업은 `/home/ubuntu/safehome-backups/scheduled`에 보관합니다. 복원 훈련은 최근 백업을 새 임시 PostgreSQL 클러스터에 실제로 넣고, 스키마·25개 지역·사용자 테이블·통계 정합성을 확인합니다. 이 클러스터는 전용 Unix 소켓에서만 접속을 받고 훈련 후 종료·삭제됩니다. S3를 설정하면 해당 원격 복사본을 내려받아 훈련합니다. 운영 DB에 복원 명령을 실행할 필요가 없습니다.
+백업은 `/home/ubuntu/safehome-backups/scheduled`에 보관합니다. 복원 훈련은 최근 백업을 새 임시 PostgreSQL 클러스터에 실제로 넣고, 스키마·25개 지역·사용자 테이블·통계 정합성을 확인합니다. 이 클러스터는 전용 Unix 소켓에서만 접속을 받고 훈련 후 종료·삭제됩니다. S3를 설정하면 해당 접두사의 최신 복사본을 S3에서 찾아 체크섬을 확인하고 복원합니다. 로컬에 백업 파일이 없어도 같은 절차를 쓸 수 있습니다.
 
 PR과 main 푸시 때 GitHub Actions가 PostgreSQL 18 테스트용 클러스터에 마이그레이션·수집·롤백·백업·복원을 검증합니다. 별도 Chromium 작업에서 390px 및 데스크톱 레이아웃, 503 안내와 재시도를 확인합니다.
 

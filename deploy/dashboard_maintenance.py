@@ -59,16 +59,36 @@ def s3_location(name):
     return (bucket, f'{prefix}/{name}' if prefix else name) if bucket else None
 
 
+def s3_bucket_args(bucket):
+    owner = os.getenv('SAFEHOME_BACKUP_S3_ACCOUNT_ID', '')
+    if not re.fullmatch(r'[0-9]{12}', owner):
+        raise RuntimeError('S3 백업 버킷의 AWS 계정 ID가 필요합니다.')
+    return ['--bucket', bucket, '--expected-bucket-owner', owner]
+
+
+def remote_checksum(bucket, key):
+    return command(['aws', 's3api', 'head-object', *s3_bucket_args(bucket), '--key', key,
+                    '--checksum-mode', 'ENABLED', '--query', 'ChecksumSHA256', '--output', 'text'])
+
+
 def upload(archive, location):
     bucket, key = location
     digest = checksum(archive)
-    args = ['--bucket', bucket, '--key', key]
+    args = [*s3_bucket_args(bucket), '--key', key]
     command(['aws', 's3api', 'put-object', *args, '--body', str(archive), '--server-side-encryption',
              'AES256', '--checksum-sha256', digest])
-    remote = command(['aws', 's3api', 'head-object', *args, '--checksum-mode', 'ENABLED',
-                      '--query', 'ChecksumSHA256', '--output', 'text'])
-    if remote != digest:
+    if remote_checksum(bucket, key) != digest:
         raise RuntimeError('원격 백업 체크섬 불일치')
+
+
+def latest_remote_archive(bucket, prefix):
+    listing = json.loads(command(['aws', 's3api', 'list-objects-v2', *s3_bucket_args(bucket),
+                                  '--prefix', prefix, '--output', 'json']))
+    names = [item['Key'][len(prefix):] for item in listing.get('Contents', [])
+             if item['Key'].startswith(prefix) and ARCHIVE.fullmatch(item['Key'][len(prefix):])]
+    if not names:
+        raise RuntimeError('복원 훈련에 사용할 S3 백업이 없습니다.')
+    return max(names)
 
 
 def daily_backup(directory):
@@ -131,23 +151,27 @@ def verify_restore(archive, bindir):
 
 
 def restore_drill(directory, bindir):
-    available = archives(directory)
-    if not available:
-        raise RuntimeError('복원 훈련에 사용할 백업이 없습니다.')
-    archive = available[0]
-    location = s3_location(archive.name)
+    location = s3_location('')
     if location:
-        bucket, key = location
+        bucket, prefix = location
+        name = latest_remote_archive(bucket, prefix)
+        key = prefix + name
+        expected = remote_checksum(bucket, key)
         with tempfile.TemporaryDirectory(prefix='safehome-offsite-') as temporary:
-            downloaded = Path(temporary)/archive.name
-            command(['aws', 's3api', 'get-object', '--bucket', bucket, '--key', key,
+            downloaded = Path(temporary)/name
+            command(['aws', 's3api', 'get-object', *s3_bucket_args(bucket), '--key', key,
                      '--checksum-mode', 'ENABLED', str(downloaded)])
-            if checksum(downloaded) != checksum(archive):
+            if checksum(downloaded) != expected:
                 raise RuntimeError('다운로드한 백업 체크섬 불일치')
             verify_restore(downloaded, bindir)
     else:
+        available = archives(directory)
+        if not available:
+            raise RuntimeError('복원 훈련에 사용할 백업이 없습니다.')
+        archive = available[0]
         verify_restore(archive, bindir)
-    print(f'격리 PostgreSQL 복원 검증 완료: {archive.name}')
+        name = archive.name
+    print(f'격리 PostgreSQL 복원 검증 완료: {name}')
 
 
 def scheduled_due(now, start, deadline, weekday):
@@ -180,8 +204,18 @@ def read_job(job, state_dir, now):
 
 def notify(message):
     print(message, flush=True)
+    topic = os.getenv('SAFEHOME_ALERT_SNS_TOPIC_ARN')
     url = os.getenv('SAFEHOME_ALERT_WEBHOOK')
-    if url:
+    if topic and url:
+        raise RuntimeError('이메일과 웹훅 중 한 가지 알림 경로만 설정하세요.')
+    if topic:
+        match = re.fullmatch(r'arn:aws:sns:([a-z0-9-]+):[0-9]{12}:[A-Za-z0-9_-]{1,256}', topic)
+        if not match:
+            raise RuntimeError('SNS 표준 주제 ARN이 올바르지 않습니다.')
+        command(['aws', 'sns', 'publish', '--region', match.group(1), '--topic-arn', topic,
+                 '--subject', 'SafeHome 운영 알림', '--message', message, '--no-cli-pager'],
+                timeout=25)
+    elif url:
         if urlsplit(url).scheme != 'https' or not urlsplit(url).hostname:
             raise RuntimeError('알림 웹훅에 HTTPS 주소가 필요합니다.')
         request = urllib.request.Request(url, json.dumps({'text': message}).encode(),
