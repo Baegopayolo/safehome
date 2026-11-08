@@ -1,4 +1,5 @@
 import os
+import secrets
 from contextlib import closing
 import sys
 import sqlite3
@@ -238,6 +239,35 @@ class PostgresBackupTests(unittest.TestCase):
         self.assertNotIn('private-password',str(result.exception))
 
 
+class SecretKeyTests(unittest.TestCase):
+    def start_app(self, key):
+        env = {**os.environ, 'DATABASE_URL': 'sqlite://', 'PYTHONDONTWRITEBYTECODE': '1'}
+        env.pop('SECRET_KEY', None)
+        if key is not None:
+            env['SECRET_KEY'] = key
+        return subprocess.run(
+            [sys.executable, '-B', '-c',
+             "import sys; sys.path.insert(0, 'backend'); from app import app; "
+             "import os; assert app.config['SECRET_KEY'] == os.environ['SECRET_KEY']; "
+             "c = app.test_client(); "
+             "assert c.get('/').status_code == 200"],
+            cwd=ROOT, env=env, capture_output=True, text=True)
+
+    def test_missing_blank_and_public_placeholder_keys_reject_startup(self):
+        for key in (None, '', '   ', 'your_very_secret_key', 'your_secret_key_here',
+                    'replace-with-your-existing-production-secret'):
+            with self.subTest(key=key):
+                result = self.start_app(key)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('SECRET_KEY must be set', result.stderr)
+
+    def test_private_key_is_preserved_and_app_starts(self):
+        key = secrets.token_hex(32)
+        result = self.start_app(key)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn(key, result.stdout + result.stderr)
+
+
 class IntegrationTests(unittest.TestCase):
     def test_migration_existing_users_pages_api_backup_and_keyless_collection(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -248,6 +278,7 @@ class IntegrationTests(unittest.TestCase):
                 c.execute("INSERT INTO user (username,password) VALUES ('preserved','hash')")
                 c.commit()
             env={**os.environ,'DATABASE_URL':'sqlite:///'+dbpath.as_posix(),'PYTHONDONTWRITEBYTECODE':'1',
+                 'SECRET_KEY':secrets.token_hex(32),
                  'MOLIT_API_KEY':'','MOLIT_RENT_API_KEY':''}
             def run(*args):
                 result=subprocess.run([sys.executable,'-B',*args],cwd=ROOT,env=env,capture_output=True,text=True)

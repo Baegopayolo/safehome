@@ -10,7 +10,14 @@ import os
 app = Flask(__name__, template_folder='../frontend', static_folder='../static')
 CORS(app)
 os.environ['TZ'] = 'Asia/Seoul'
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your_very_secret_key')
+secret_key = os.getenv('SECRET_KEY')
+if not secret_key or not secret_key.strip() or secret_key.strip() in {
+    'your_very_secret_key',
+    'your_secret_key_here',
+    'replace-with-your-existing-production-secret',
+}:
+    raise RuntimeError('SECRET_KEY must be set to a private secret before starting SafeHome.')
+app.config['SECRET_KEY'] = secret_key
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///site.db')
 app.config['DASHBOARD_STALE_HOURS'] = int(os.getenv('DASHBOARD_STALE_HOURS', '192'))
 app.config['DASHBOARD_LOCK_PATH'] = os.getenv('DASHBOARD_LOCK_PATH')

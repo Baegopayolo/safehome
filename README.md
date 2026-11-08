@@ -118,8 +118,13 @@ npm run build
 
 ```env
 KAKAO_APP_KEY=your_kakao_app_key_here
-SECRET_KEY=your_secret_key_here
+SECRET_KEY=
 ```
+
+`SECRET_KEY`는 필수입니다. 빈 값이나 기존 공개 예시 키를 사용하면 웹 서버와 Flask 관리 명령은 시작되지 않습니다.
+로컬 개발용 키는 `python -c "import secrets; print(secrets.token_hex(32))"`로 생성해 설정하세요.
+실제 키와 `.env`는 Git에 커밋하지 마세요. Flask CLI는 `.env`를 읽으며, Python 직접 실행이나 운영 서비스는 프로세스 환경에 키를 전달해야 합니다.
+운영 웹 서비스와 수집 서비스에는 기존 비공개 키를 유지하세요. 키를 변경하면 기존 로그인 세션은 무효화됩니다.
 
 ### 6. 데이터베이스 초기화
 ```bash
