@@ -324,10 +324,11 @@ function renderResults(region, props, container) {
         const warns = Array.isArray(prop.warnings) ? prop.warnings : [];
         const checklist = Array.isArray(prop.checklist) ? prop.checklist : [];
         const warnCount = warns.length;
-        const risk = warnCount >= 5 ? 'high' : warnCount >= 2 ? 'med' : 'low';
-        const riskClass = risk === 'high' ? 'badge-danger' : risk === 'med' ? 'badge-warn' : 'badge-success';
+        const risk = prop.risk_level;
+        const riskClass = risk === 'high' ? 'badge-danger' : risk === 'medium' ? 'badge-warn' : '';
+        const riskLabel = {high: '전세가율 높음', medium: '전세가율 주의', low: '전세가율 낮음'}[risk] || '판단 불가';
         
-        const warnItems = warns.length ? warns.map(w => `<li>⚠️ ${w}</li>`).join('') : '<li>✅ 특이사항 없음</li>';
+        const warnItems = warns.length ? warns.map(w => `<li>⚠️ ${w}</li>`).join('') : '<li>추가 경고 항목 없음</li>';
         
         // 체크리스트를 동적으로 렌더링 (중요도 표시)
         const checklistItems = checklist.length ? checklist.map(c => {
@@ -339,11 +340,15 @@ function renderResults(region, props, container) {
         
         let rateBadgeClass = 'badge-success';
         if (prop.jeonse_rate >= 80) rateBadgeClass = 'badge-danger';
-        else if (prop.jeonse_rate >= 70) rateBadgeClass = 'badge-warn';
+        else if (prop.jeonse_rate >= 60) rateBadgeClass = 'badge-warn';
         
-        const jeonseInfo = prop.jeonse_rate 
-            ? `<div style="margin-top:4px; font-size:13px; color:#555;">전세가: <strong>${prop.jeonse_price}</strong> (전세가율 <span class="badge ${rateBadgeClass}">${prop.jeonse_rate}%</span>)</div>`
-            : '<div style="margin-top:4px; font-size:13px; color:#999;">전세 실거래 정보 없음</div>';
+        const samples = Number.isInteger(prop.comparison_sample_count) ? prop.comparison_sample_count : null;
+        const confidence = prop.comparison_confidence === 'moderate' ? '보통' : '제한적';
+        const unavailable = prop.comparison_status === 'source_unavailable'
+            ? '전세 자료 조회 실패' : '비교 표본 부족';
+        const jeonseInfo = prop.jeonse_rate != null
+            ? `<div class="comparison-evidence">전세 보증금 중앙값 <strong>${prop.jeonse_price}</strong> · 참고 전세가율 <span class="badge ${rateBadgeClass}">${prop.jeonse_rate}%</span> · 비교 ${samples}건 (신뢰도 ${confidence})</div>`
+            : `<div class="comparison-evidence">전세가율 판단 불가 · ${unavailable}${samples === null ? '' : ` (${samples}건)`}</div>`;
 
         // 지역명 추출 (주소에서)
         const address = prop.address || '';
@@ -370,7 +375,7 @@ function renderResults(region, props, container) {
                         ${jeonseInfo}
                     </div>
                     <div class="card-actions">
-                        <span class="badge ${riskClass}">경고 ${warnCount}</span>
+                        <span class="badge ${riskClass}">${riskLabel}</span>
                         <button class="compare-btn" onclick="addToComparisonFromButton(this)" data-property='${JSON.stringify(prop).replace(/'/g, "&apos;")}'>비교 추가</button>
                     </div>
                 </div>
@@ -378,6 +383,7 @@ function renderResults(region, props, container) {
                 <h4 class="check-toggle">[안전 계약 체크리스트] ▾</h4>
                 <ul class="checklist collapsed">${checklistItems}</ul>
                 <div class="property-actions">
+                    <button class="action-btn location-btn" onclick="viewPropertyLocation(${JSON.stringify(address || regionName || '').replace(/"/g, '&quot;')})">📍 위치보기</button>
                     <button class="action-btn review-btn" onclick="showReviewModal('${name}')">리뷰 작성</button>
                     <button class="action-btn report-btn" onclick="showReportModal(${JSON.stringify({
                         name: name,
@@ -392,7 +398,31 @@ function renderResults(region, props, container) {
         `;
     }).join('');
 
-    container.innerHTML = `${headerHTML(properties.length)}<div class="property-list">${buildCards(properties)}</div>`;
+    container.innerHTML = `${headerHTML(properties.length)}<div class="property-list"></div>
+        <div class="transaction-pagination" data-property-pagination>
+            <button type="button" data-property-prev>이전</button>
+            <span role="status" data-property-page></span>
+            <button type="button" data-property-next>다음</button>
+        </div>`;
+    const propertyPageSize = 30;
+    let propertyPage = 1;
+    let filtered = properties;
+    const pager = container.querySelector('[data-property-pagination]');
+    const previous = pager.querySelector('[data-property-prev]');
+    const next = pager.querySelector('[data-property-next]');
+    const renderPage = () => {
+        const pages = Math.max(1, Math.ceil(filtered.length / propertyPageSize));
+        const offset = (propertyPage - 1) * propertyPageSize;
+        container.querySelector('.property-list').innerHTML = buildCards(filtered.slice(offset, offset + propertyPageSize));
+        document.getElementById('result-count').textContent = filtered.length;
+        pager.hidden = pages === 1;
+        previous.disabled = propertyPage === 1;
+        next.disabled = propertyPage === pages;
+        pager.querySelector('[data-property-page]').textContent = `${propertyPage} / ${pages}페이지`;
+        attachCardHandlers();
+    };
+    previous.onclick = () => { propertyPage -= 1; renderPage(); };
+    next.onclick = () => { propertyPage += 1; renderPage(); };
 
     const applyFilterAndSort = () => {
         const sortVal = document.getElementById('sort-select').value;
@@ -401,8 +431,8 @@ function renderResults(region, props, container) {
 
         if (sortVal === 'warnDesc') list.sort((a, b) => (b.warnings?.length || 0) - (a.warnings?.length || 0));
         else if (sortVal === 'warnAsc') list.sort((a, b) => (a.warnings?.length || 0) - (b.warnings?.length || 0));
-        else if (sortVal === 'jeonseRateDesc') list.sort((a, b) => (b.jeonse_rate || 0) - (a.jeonse_rate || 0));
-        else if (sortVal === 'jeonseRateAsc') list.sort((a, b) => (a.jeonse_rate || 0) - (b.jeonse_rate || 0));
+        else if (sortVal === 'jeonseRateDesc') list.sort((a, b) => (b.jeonse_rate ?? -1) - (a.jeonse_rate ?? -1));
+        else if (sortVal === 'jeonseRateAsc') list.sort((a, b) => (a.jeonse_rate ?? Infinity) - (b.jeonse_rate ?? Infinity));
 
         if (q) {
             list = list.filter(p => 
@@ -411,9 +441,9 @@ function renderResults(region, props, container) {
             );
         }
 
-        document.querySelector('.property-list').innerHTML = buildCards(list);
-        attachCardHandlers();
-        document.getElementById('result-count').textContent = list.length;
+        filtered = list;
+        propertyPage = 1;
+        renderPage();
     };
 
     const attachCardHandlers = () => {
@@ -428,7 +458,7 @@ function renderResults(region, props, container) {
         });
     };
 
-    attachCardHandlers();
+    renderPage();
     document.getElementById('sort-select').addEventListener('change', applyFilterAndSort);
     document.getElementById('filter-input').addEventListener('input', applyFilterAndSort);
 
@@ -456,9 +486,12 @@ function renderResults(region, props, container) {
 }
 
 // 실거래 데이터 로드 (드롭다운으로 기간 선택 가능)
-function loadRealTransactions(region, monthCount = null) {
+let transactionRequest = 0;
+
+function loadRealTransactions(region, monthCount = null, page = 1) {
     const container = document.getElementById('real-transactions-container');
     if (!container || !region) return;
+    const requestId = ++transactionRequest;
 
     // 선택된 개월 수 가져오기 (기본값: 1개월)
     const monthSelect = document.getElementById('month-select');
@@ -466,37 +499,40 @@ function loadRealTransactions(region, monthCount = null) {
 
     // 로딩 표시는 즉시 하지 않고 약간의 지연 후 표시 (빠른 응답 시 불필요한 로딩 방지)
     const loadingTimeout = setTimeout(() => {
+        if (requestId !== transactionRequest) return;
         container.innerHTML = '<div class="loading"><span class="spinner"></span><span>실거래 데이터를 불러오는 중입니다...</span></div>';
     }, 200);  // 300ms -> 200ms로 단축
 
-    const now = new Date();
+    const kst = new Intl.DateTimeFormat('sv-SE', {timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit'}).format(new Date());
+    const [year, monthNumber] = kst.split('-').map(Number);
     const months = [];
     // 선택된 개월 수만큼 조회 (기본값: 1개월)
     for (let i = 0; i < selectedMonths; i++) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months.push(date.getFullYear() + String(date.getMonth() + 1).padStart(2, '0'));
+        const date = new Date(Date.UTC(year, monthNumber - 1 - i, 1));
+        months.push(date.getUTCFullYear() + String(date.getUTCMonth() + 1).padStart(2, '0'));
     }
 
     // 병렬 처리로 모든 개월 데이터 동시 조회 (최적화)
     Promise.all(months.map(month => 
-        fetch(`/api/real-transactions?region=${encodeURIComponent(region)}&deal_ymd=${month}&numOfRows=30`)  // 50 -> 30으로 축소
-            .then(res => res.ok ? res.json() : { transactions: [] })
-            .catch(() => ({ transactions: [] }))
+        fetch(`/api/real-transactions?region=${encodeURIComponent(region)}&deal_ymd=${month}&numOfRows=15&pageNo=${page}`)
+            .then(res => {
+                if (!res.ok) throw new Error('거래 자료 조회 실패');
+                return res.json();
+            })
     )).then(results => {
         clearTimeout(loadingTimeout);
+        if (requestId !== transactionRequest) return;
         const allTransactions = results.flatMap(data => data.transactions || []);
+        const hasMore = results.some(data => data.has_more);
         
-        if (allTransactions.length === 0) {
+        if (allTransactions.length === 0 && page === 1) {
             container.innerHTML = '<div class="transaction-empty">최근 실거래 데이터가 없습니다.</div>';
             return;
         }
         
-        // 최대 15개만 표시 (20 -> 15로 축소)
-        const displayTransactions = allTransactions.slice(0, 15);
-        
         container.innerHTML = `
             <div class="transactions-grid">
-                ${displayTransactions.map(item => {
+                ${allTransactions.map(item => {
                     const area = item['전용면적'] || '';
                     const areaNum = parseFloat(area);
                     const pyeong = areaNum ? (areaNum / 3.3).toFixed(1) : '';
@@ -515,9 +551,17 @@ function loadRealTransactions(region, monthCount = null) {
                     `;
                 }).join('')}
             </div>
+            <div class="transaction-pagination">
+                <button type="button" data-transaction-prev ${page === 1 ? 'disabled' : ''}>이전</button>
+                <span role="status">${page}페이지 · 월별 최대 15건</span>
+                <button type="button" data-transaction-next ${hasMore ? '' : 'disabled'}>다음</button>
+            </div>
         `;
+        container.querySelector('[data-transaction-prev]').onclick = () => loadRealTransactions(region, selectedMonths, page - 1);
+        container.querySelector('[data-transaction-next]').onclick = () => loadRealTransactions(region, selectedMonths, page + 1);
     }).catch(() => {
         clearTimeout(loadingTimeout);
+        if (requestId !== transactionRequest) return;
         container.innerHTML = '<div class="transaction-empty">실거래 데이터를 불러오는 데 실패했습니다.</div>';
     });
 }
@@ -548,23 +592,6 @@ function addToComparisonFromButton(button) {
 }
 
 function addToComparison(property) {
-    // risk_score가 없으면 계산
-    if (property.risk_score === undefined || property.risk_score === null) {
-        // 경고 개수 기반으로 계산
-        const warnings = Array.isArray(property.warnings) ? property.warnings : [];
-        property.risk_score = warnings.length * 20;
-        
-        // 전세가율 기반 위험도도 고려
-        const jeonse_rate = property.jeonse_rate;
-        if (jeonse_rate) {
-            if (jeonse_rate >= 80) {
-                property.risk_score = Math.max(property.risk_score, 80);
-            } else if (jeonse_rate >= 60) {
-                property.risk_score = Math.max(property.risk_score, 60);
-            }
-        }
-    }
-    
     if (comparisonProperties.length >= 5) {
         alert('최대 5개까지만 비교할 수 있습니다.');
         return;
@@ -638,10 +665,10 @@ function showComparison() {
 
 function generateComparisonModal() {
     const getRiskLevel = (score) => {
-        if (!score) return { level: '정보 없음', class: 'risk-unknown', color: '#6b7280' };
-        if (score >= 80) return { level: '위험', class: 'risk-danger', color: '#dc3545' };
+        if (score == null) return { level: '판단 불가', class: 'risk-unknown', color: '#6b7280' };
+        if (score >= 80) return { level: '높음', class: 'risk-danger', color: '#dc3545' };
         if (score >= 60) return { level: '주의', class: 'risk-warning', color: '#ffc107' };
-        return { level: '안전', class: 'risk-safe', color: '#28a745' };
+        return { level: '낮음', class: 'risk-safe', color: '#28a745' };
     };
     
     const formatPrice = (price) => {
@@ -653,19 +680,6 @@ function generateComparisonModal() {
         return price;
     };
     
-    const getBestProperty = () => {
-        if (comparisonProperties.length < 2) return null;
-        let best = comparisonProperties[0];
-        for (let prop of comparisonProperties) {
-            const score1 = best.risk_score || 100;
-            const score2 = prop.risk_score || 100;
-            if (score2 < score1) best = prop;
-        }
-        return best;
-    };
-    
-    const bestProperty = getBestProperty();
-    
     return `
         <div class="modal-content comparison-modal-content">
             <div class="modal-header">
@@ -673,28 +687,18 @@ function generateComparisonModal() {
                 <button onclick="closeComparison()" class="modal-close">×</button>
             </div>
             <div class="comparison-body">
-                ${bestProperty ? `
-                <div class="comparison-summary">
-                    <div class="summary-icon">🏆</div>
-                    <div class="summary-content">
-                        <strong>추천 매물:</strong> <span class="summary-name">${bestProperty.name || '매물명 없음'}</span>
-                        <p>가장 낮은 위험도 점수(${bestProperty.risk_score || 0}점)를 가진 매물입니다.</p>
-                    </div>
-                </div>
-                ` : ''}
-                
                 <div class="comparison-visual">
-                    <h4>위험도 비교</h4>
+                    <h4>전세가율 참고 구간</h4>
                     <div class="risk-bars">
                         ${comparisonProperties.map((prop, idx) => {
                             const risk = getRiskLevel(prop.risk_score);
-                            const score = prop.risk_score || 0;
-                            const width = Math.min(score, 100);
+                            const rate = prop.jeonse_rate;
+                            const width = rate == null ? 0 : Math.min(rate, 100);
                             return `
                                 <div class="risk-bar-item">
                                     <div class="risk-bar-label">
                                         <span class="risk-property-name">${prop.name || '매물명 없음'}</span>
-                                        <span class="risk-score ${risk.class}">${score}점</span>
+                                        <span class="risk-score ${risk.class}">${rate == null ? '판단 불가' : rate + '%'}</span>
                                     </div>
                                     <div class="risk-bar-container">
                                         <div class="risk-bar" style="width: ${width}%; background-color: ${risk.color};"></div>
@@ -734,7 +738,7 @@ function generateComparisonModal() {
                                 <td class="comparison-label">전세가율</td>
                                 ${comparisonProperties.map(p => {
                                     const rate = p.jeonse_rate;
-                                    if (!rate) return '<td>정보 없음</td>';
+                                    if (rate == null) return '<td>판단 불가</td>';
                                     const rateClass = rate >= 80 ? 'rate-high' : (rate >= 60 ? 'rate-medium' : 'rate-low');
                                     return `<td><span class="${rateClass}">${rate}%</span></td>`;
                                 }).join('')}
@@ -753,13 +757,13 @@ function generateComparisonModal() {
                             </tr>
                             
                             <tr class="comparison-section-header">
-                                <td colspan="${comparisonProperties.length + 1}">위험도 분석</td>
+                                <td colspan="${comparisonProperties.length + 1}">전세가율 참고 분석</td>
                             </tr>
                             <tr>
-                                <td class="comparison-label">종합 위험도</td>
+                                <td class="comparison-label">참고 구간</td>
                                 ${comparisonProperties.map(p => {
                                     const risk = getRiskLevel(p.risk_score);
-                                    return `<td><span class="risk-badge ${risk.class}">${p.risk_score || 0}점 (${risk.level})</span></td>`;
+                                    return `<td><span class="risk-badge ${risk.class}">${risk.level}</span></td>`;
                                 }).join('')}
                             </tr>
                             <tr>
@@ -815,7 +819,7 @@ function exportComparison() {
         매매가: p.price,
         전세가: p.jeonse_price,
         전세가율: p.jeonse_rate,
-        위험도: p.risk_score,
+        참고전세가율구간: p.risk_level === 'unknown' ? '판단 불가' : p.risk_level,
         경고수: p.warnings?.length || 0
     }));
     
@@ -866,6 +870,16 @@ function showReviewModal(propertyName) {
 function closeReviewModal() {
     document.getElementById('review-modal').classList.add('hidden');
     document.getElementById('review-form').reset();
+}
+
+// 매물 위치보기: 카카오맵 검색 결과 페이지를 새 탭으로 연다 (API 키/결제수단 등록 불필요)
+function viewPropertyLocation(address) {
+    if (!address) {
+        alert('주소 정보가 없어 위치를 확인할 수 없습니다.');
+        return;
+    }
+    const url = 'https://map.kakao.com/link/search/' + encodeURIComponent(address);
+    window.open(url, '_blank', 'noopener');
 }
 
 // 신고 모달

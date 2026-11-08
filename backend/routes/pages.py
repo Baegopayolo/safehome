@@ -31,3 +31,6 @@ def register_page_routes(app):
     @app.route('/reviews')
     def reviews_page():
         return render_template('reviews.html')
+    @app.route('/privacy')
+    def privacy_page():
+        return render_template('privacy.html')

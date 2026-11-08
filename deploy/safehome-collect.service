@@ -5,19 +5,18 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-# Verified production paths on the Ubuntu EC2 host.
 User=ubuntu
 Group=ubuntu
-WorkingDirectory=/home/ubuntu/safehome
+WorkingDirectory=/home/ubuntu/safehome-current
 EnvironmentFile=/home/ubuntu/.config/safehome-dashboard.env
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStartPre=/home/ubuntu/safehome/venv/bin/python -m flask --app backend/app check-data-storage
-ExecStartPre=/home/ubuntu/safehome/venv/bin/python -m flask --app backend/app backup-db --directory /home/ubuntu/safehome-backups/scheduled
-ExecStart=/home/ubuntu/safehome/venv/bin/python -m flask --app backend/app sync-dashboard --mode scheduled
+ExecStartPre=/home/ubuntu/safehome-current/venv/bin/python -m flask --app backend/app check-data-storage
+ExecStartPre=/home/ubuntu/safehome-current/venv/bin/python -m flask --app backend/app backup-db --directory /home/ubuntu/safehome-backups/scheduled
+ExecStart=/home/ubuntu/safehome-current/venv/bin/python -m flask --app backend/app sync-dashboard --mode scheduled
 TimeoutStartSec=4h
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/ubuntu/safehome/backend/instance /home/ubuntu/safehome-backups
+ReadWritePaths=/home/ubuntu/.local/state/safehome /home/ubuntu/safehome-backups

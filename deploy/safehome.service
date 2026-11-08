@@ -1,0 +1,18 @@
+[Unit]
+Description=SafeHome web service
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/safehome-current
+EnvironmentFile=/home/ubuntu/.config/safehome-web.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=TRUST_NGINX_PROXY=1
+ExecStart=/home/ubuntu/safehome-current/venv/bin/gunicorn --chdir /home/ubuntu/safehome-current/backend --workers 3 --timeout 90 --bind 127.0.0.1:8000 app:app
+Restart=on-failure
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

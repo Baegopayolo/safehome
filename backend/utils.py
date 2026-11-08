@@ -4,11 +4,18 @@ import re
 from datetime import datetime, timezone, timedelta
 import requests
 import xml.etree.ElementTree as ET
-from urllib.parse import quote
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections import OrderedDict
+from math import isfinite
+from statistics import median
+from threading import Lock
+from time import monotonic
+from urllib.parse import unquote
+from concurrent.futures import ThreadPoolExecutor
 
 def parse_date(deal_date_str):
     """deal_date 문자열을 datetime으로 변환 (utils.py 내부용)"""
+    if not isinstance(deal_date_str, str):
+        return None
     try:
         date_str = deal_date_str.replace('-', '') if '-' in deal_date_str else deal_date_str
         if len(date_str) >= 8:
@@ -120,7 +127,7 @@ def _parse_common_fields(item):
         return el.text.strip() if el is not None and el.text else ''
     
     apt_name = txt('아파트') or txt('aptNm') or txt('아파트명')
-    dong_name = txt('법정동') or txt('법정동명') or txt('법정동주소')
+    dong_name = txt('법정동') or txt('법정동명') or txt('법정동주소') or txt('umdNm')
     bonbun = txt('본번') or txt('bonbun') or ''
     bubun = txt('부번') or txt('bubun') or ''
     jibun = txt('지번') or (f"{bonbun}-{bubun}" if bonbun or bubun else '')
@@ -140,15 +147,20 @@ def _parse_common_fields(item):
         'area': area,
         'floor': txt('층') or txt('층수') or txt('floor') or '',
         'build_year': txt('건축년도') or txt('buildYear') or txt('건축년') or '',
-        'region_code': txt('지역코드') or txt('lawdCd') or '',
+        'region_code': txt('지역코드') or txt('lawdCd') or txt('sggCd') or '',
         'txt_func': txt
     }
 
-def _parse_transactions(xml_bytes: bytes):
-    """XML 응답을 파싱하여 거래 데이터 추출 (매매)"""
-    root = ET.fromstring(xml_bytes)
+def _is_cancelled(item):
+    return (item.findtext('cdealType', '').strip().upper() in {'O', 'Y', '1'}
+            or item.findtext('cdealDay', '').strip() not in {'', '-', '0'})
+
+
+def _parse_transactions(records):
     items = []
-    for it in root.findall('.//item'):
+    for it in records:
+        if _is_cancelled(it):
+            continue
         common = _parse_common_fields(it)
         price_raw = common['txt_func']('거래금액') or common['txt_func']('dealAmount')
         try:
@@ -170,14 +182,14 @@ def _parse_transactions(xml_bytes: bytes):
         })
     return items
 
-def _parse_rent_transactions(xml_bytes: bytes):
-    """XML 응답을 파싱하여 전월세 거래 데이터 추출"""
-    root = ET.fromstring(xml_bytes)
+def _parse_rent_transactions(records):
     items = []
-    for it in root.findall('.//item'):
+    for it in records:
+        if _is_cancelled(it):
+            continue
         common = _parse_common_fields(it)
         jeonse_price_raw = common['txt_func']('보증금') or common['txt_func']('보증금액') or common['txt_func']('deposit') or ''
-        monthly_rent_raw = common['txt_func']('월세금액') or common['txt_func']('월세') or common['txt_func']('rent') or ''
+        monthly_rent_raw = common['txt_func']('월세금액') or common['txt_func']('월세') or common['txt_func']('monthlyRent') or common['txt_func']('rent') or ''
         
         try:
             jeonse_price = int(jeonse_price_raw.replace(',', '').replace(' ', '')) if jeonse_price_raw else None
@@ -198,110 +210,81 @@ def _parse_rent_transactions(xml_bytes: bytes):
             '전세금액원문': jeonse_price_raw,
             '월세금액': monthly_rent,
             '월세금액원문': monthly_rent_raw,
+            '계약구분': common['txt_func']('contractType'),
+            '계약기간': common['txt_func']('contractTerm'),
             '거래일자': common['deal_date'],
             '지번': common['jibun'],
             '지역코드': common['region_code'],
         })
     return items
 
-def _save_transactions_to_db(db, RealTransaction, lawd_cd: str, deal_ymd: str, region: str, dong: str, transactions: list):
-    """실거래 데이터를 DB에 저장"""
-    try:
-        for tx in transactions:
-            existing = RealTransaction.query.filter_by(
-                lawd_cd=lawd_cd, deal_ymd=deal_ymd,
-                apt_name=tx.get('아파트'), dong_name=tx.get('법정동'),
-                price=tx.get('거래금액'), deal_date=tx.get('거래일자')
-            ).first()
-            if not existing:
-                rt = RealTransaction(
-                    lawd_cd=lawd_cd, deal_ymd=deal_ymd, region=region, dong=dong,
-                    apt_name=tx.get('아파트'), dong_name=tx.get('법정동'),
-                    price=tx.get('거래금액'), price_raw=tx.get('거래금액원문'),
-                    area=tx.get('전용면적'), floor=tx.get('층'),
-                    build_year=tx.get('건축년도'), deal_date=tx.get('거래일자'),
-                    jibun=tx.get('지번'), region_code=tx.get('지역코드')
-                )
-                db.session.add(rt)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+class TransactionSourceError(Exception):
+    """A region/month could not be fully read from the public source."""
 
-def _load_transactions_from_db(RealTransaction, lawd_cd: str, deal_ymd: str, dong: str = None):
-    """DB에서 실거래 데이터 불러오기 (동 이름 유연하게 매칭)"""
-    try:
-        # 먼저 lawd_cd와 deal_ymd로 필터링
-        query = RealTransaction.query.filter_by(lawd_cd=lawd_cd, deal_ymd=deal_ymd)
-        transactions = query.all()
-        if not transactions:
-            return None
-        
-        # Python에서 동 이름 필터링 (SQLite의 endswith 제한 회피)
-        result = [{
-            '아파트': tx.apt_name, '법정동': tx.dong_name, '전용면적': tx.area,
-            '층': tx.floor, '건축년도': tx.build_year, '거래금액': tx.price,
-            '거래금액원문': tx.price_raw, '거래일자': tx.deal_date,
-            '지번': tx.jibun, '지역코드': tx.region_code,
-        } for tx in transactions]
-        
-        # 동 이름이 있으면 유연하게 필터링 (결과가 없으면 원본 반환)
-        if dong:
-            filtered = _filter_by_dong(result, dong)
-            # 필터링 결과가 있으면 사용, 없으면 원본 사용 (너무 엄격한 필터링 방지)
-            result = filtered if filtered and len(filtered) > 0 else result
-        
-        return result if result else None
-    except Exception:
-        return None
 
-def _fetch_rtms(lawd_cd: str, deal_ymd: str, page_no: int = 1, rows: int = 50):
-    """국토부 RTMS API 호출 (매매)"""
-    api_key = _get_api_key()
-    if not api_key:
-        return {'error': 'API key is missing. Set MOLIT_API_KEY.'}, 500
-    encoded_key = api_key if '%' in api_key else quote(api_key, safe='')
-    url = f"http://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev?serviceKey={encoded_key}&LAWD_CD={lawd_cd}&DEAL_YMD={deal_ymd}&pageNo={page_no}&numOfRows={rows}"
-    try:
-        resp = requests.get(url, timeout=8)
-        if resp.status_code != 200:
-            return {'error': f'HTTP {resp.status_code}', 'detail': resp.text[:500]}, resp.status_code
-        return {'transactions': _parse_transactions(resp.content)}, 200
-    except requests.exceptions.HTTPError as e:
-        return {'error': f'HTTP {e.response.status_code}', 'detail': (resp.text[:500] if hasattr(resp, 'text') else str(e))}, e.response.status_code
-    except requests.exceptions.Timeout:
-        return {'error': 'Request timed out'}, 504
-    except requests.exceptions.RequestException as e:
-        return {'error': f'Network error: {e}'}, 502
-    except ET.ParseError:
-        return {'error': 'Failed to parse XML response'}, 500
-    except Exception as e:
-        return {'error': f'Unexpected error: {str(e)}'}, 500
+_snapshot_cache = OrderedDict()
+_snapshot_lock = Lock()
 
-def _fetch_rent_rtms(lawd_cd: str, deal_ymd: str, page_no: int = 1, rows: int = 50):
-    """국토부 RTMS API 호출 (전월세)"""
-    api_key = _get_api_key(rent=True)
-    if not api_key:
-        # 전월세 API 키가 없으면 매매 API 키 사용 (fallback)
-        api_key = _get_api_key(rent=False)
-    if not api_key:
-        return {'error': 'API key is missing. Set MOLIT_RENT_API_KEY or MOLIT_API_KEY.'}, 500
-    encoded_key = api_key if '%' in api_key else quote(api_key, safe='')
-    url = f"https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent?serviceKey={encoded_key}&LAWD_CD={lawd_cd}&DEAL_YMD={deal_ymd}&pageNo={page_no}&numOfRows={rows}"
+
+def load_transaction_snapshot(kind, lawd_cd, deal_ymd):
+    """Cache only complete, unfiltered region/month results for five minutes."""
+    scope = (kind, lawd_cd, deal_ymd)
+    with _snapshot_lock:
+        cached = _snapshot_cache.get(scope)
+        if cached and cached[0] > monotonic():
+            _snapshot_cache.move_to_end(scope)
+            return cached[1]
+
+    rent = kind == 'rent'
+    key = (_get_api_key(rent=True) if rent else None) or _get_api_key()
+    if not key:
+        raise TransactionSourceError('MISSING_API_KEY')
+    endpoint = 'RTMSDataSvcAptRent/getRTMSDataSvcAptRent' if rent else 'RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev'
+    url = f'https://apis.data.go.kr/1613000/{endpoint}'
+    records = []
+    seen_pages = set()
+    total = None
+    deadline = monotonic() + 20
     try:
-        resp = requests.get(url, timeout=8)
-        if resp.status_code != 200:
-            return {'error': f'HTTP {resp.status_code}', 'detail': resp.text[:500]}, resp.status_code
-        return {'transactions': _parse_rent_transactions(resp.content)}, 200
-    except requests.exceptions.HTTPError as e:
-        return {'error': f'HTTP {e.response.status_code}', 'detail': (resp.text[:500] if hasattr(resp, 'text') else str(e))}, e.response.status_code
-    except requests.exceptions.Timeout:
-        return {'error': 'Request timed out'}, 504
-    except requests.exceptions.RequestException as e:
-        return {'error': f'Network error: {e}'}, 502
-    except ET.ParseError:
-        return {'error': 'Failed to parse XML response'}, 500
-    except Exception as e:
-        return {'error': f'Unexpected error: {str(e)}'}, 500
+        with requests.Session() as session:
+            for page in range(1, 21):
+                if monotonic() >= deadline:
+                    raise TransactionSourceError('PAGE_TIMEOUT')
+                response = session.get(url, params={'serviceKey': unquote(key), 'LAWD_CD': lawd_cd,
+                    'DEAL_YMD': deal_ymd, 'pageNo': page, 'numOfRows': 1000}, timeout=(4, 7))
+                response.raise_for_status()
+                root = ET.fromstring(response.content)
+                if root.findtext('./header/resultCode') not in {'00', '000'}:
+                    raise TransactionSourceError('UPSTREAM_REJECTED')
+                reported_total = int(root.findtext('./body/totalCount', '-1'))
+                if reported_total < 0 or (total is not None and reported_total != total):
+                    raise TransactionSourceError('CHANGED_TOTAL')
+                total = reported_total
+                if int(root.findtext('./body/pageNo', '-1')) != page:
+                    raise TransactionSourceError('WRONG_PAGE')
+                batch = root.findall('./body/items/item')
+                signature = tuple(ET.tostring(item) for item in batch)
+                if len(records) + len(batch) > total or (not batch and len(records) < total) or signature in seen_pages:
+                    raise TransactionSourceError('INVALID_PAGE')
+                seen_pages.add(signature)
+                records.extend(batch)
+                if len(records) == total:
+                    break
+            else:
+                raise TransactionSourceError('PAGE_LIMIT')
+    except (requests.RequestException, ET.ParseError, ValueError):
+        raise TransactionSourceError('SOURCE_UNAVAILABLE') from None
+
+    transactions = (_parse_rent_transactions if rent else _parse_transactions)(records)
+    transactions.sort(key=lambda tx: (tx['거래일자'], tx['아파트'], tx['법정동'], tx['지번'],
+                                      tx['전용면적'], tx['층']), reverse=True)
+    with _snapshot_lock:
+        _snapshot_cache[scope] = (monotonic() + 300, transactions)
+        _snapshot_cache.move_to_end(scope)
+        if len(_snapshot_cache) > 32:
+            _snapshot_cache.popitem(last=False)
+    return transactions
+
 
 def _load_heatmap_from_db(HeatmapData):
     """DB에서 히트맵 데이터 불러오기 (score는 정수로 저장되어 있지만, Float로 반환하여 일관성 유지)"""
@@ -456,339 +439,111 @@ def get_heatmap_data(db=None, HeatmapData=None, RealTransaction=None, force_upda
     
     return heatmap_data
 
-def _filter_by_dong(transactions, dong):
-    """동 이름으로 거래 데이터 필터링 (유연한 매칭)"""
-    if not dong or not transactions:
+def filter_transactions_by_region(transactions, region):
+    match = re.search(r'[가-힣0-9]+[동가리](?=[\s,]|$)', region or '')
+    if not match:
         return transactions
-    filtered = []
-    dong_clean = dong.replace('동', '').replace('가', '').replace('리', '').strip()
-    dong_with_suffix = dong if dong.endswith(('동', '가', '리')) else dong
-    
-    for t in transactions:
-        dong_name = t.get('법정동', '').strip()
-        if not dong_name:
-            # 동 이름이 없으면 포함 (다른 필터로 걸러짐)
+    return [tx for tx in transactions if tx.get('법정동') == match.group()]
+
+
+def _comparison_fields(tx):
+    try:
+        area = float(tx.get('전용면적'))
+    except (TypeError, ValueError):
+        return None
+    day = parse_date(tx.get('거래일자'))
+    if not day or not isfinite(area) or area <= 0 or not tx.get('아파트') or not tx.get('법정동'):
+        return None
+    lot = tx.get('지번') or ''
+    if re.fullmatch(r'\d+(?:-\d+)?', lot):
+        main, _, sub = lot.partition('-')
+        lot = (int(main), int(sub or 0))
+    return area, day, lot, tx.get('건축년도')
+
+
+def _estimate_jeonse(sale, candidates):
+    price = sale.get('거래금액')
+    fields = _comparison_fields(sale)
+    if fields is None or not price or price <= 0:
+        return None, 0
+    area, day, lot, year = fields
+    deposits = []
+    for (rent_area, rent_day, rent_lot, rent_year), deposit in candidates:
+        if abs(area - rent_area) > 1 or abs((day - rent_day).days) > 30:
             continue
-        
-        # 정확한 매칭 우선
-        if dong_name == dong or dong_name == dong_with_suffix:
-            filtered.append(t)
+        if (lot and rent_lot and lot != rent_lot) or (year and rent_year and year != rent_year):
             continue
-        
-        # 끝부분 매칭 (예: "청담동" == "청담동")
-        if dong_name.endswith(dong) or dong_name.endswith(dong_with_suffix):
-            filtered.append(t)
+        if not (lot and rent_lot) and not (year and year == rent_year):
             continue
-        
-        # 동 이름만 추출하여 매칭 (예: "청담" == "청담동")
-        if dong_clean:
-            dong_name_clean = dong_name.replace('동', '').replace('가', '').replace('리', '').strip()
-            # 정확히 일치하는 경우
-            if dong_name_clean == dong_clean:
-                filtered.append(t)
-                continue
-            # 끝부분이 일치하는 경우 (예: "청담동" == "청담동1가"의 "청담" 부분)
-            if dong_name.endswith(dong_clean + '동') or dong_name.endswith(dong_clean + '가') or dong_name.endswith(dong_clean + '리'):
-                filtered.append(t)
-                continue
-            # 포함 관계 확인 (예: "석촌"이 "석촌동"에 포함)
-            if dong_clean in dong_name_clean or dong_name_clean in dong_clean:
-                filtered.append(t)
-                continue
-    
-    # 필터링된 결과가 있으면 반환, 없으면 원래 데이터 반환 (너무 엄격한 필터링 방지)
-    return filtered if filtered else transactions
+        if deposit >= price * 0.01:
+            deposits.append(deposit)
+    return (median(deposits) if len(deposits) >= 3 else None), len(deposits)
+
 
 def fetch_properties_by_region(region, db=None, RealTransaction=None):
-    """지역명을 받아 국토부 API를 조회하고, 매물 리스트를 반환하는 함수 (전세가율 포함) - 최적화 버전"""
+    """Compare recent sales with comparable pure-jeonse records."""
     if not region:
         return []
-    
-    dong = _extract_dong(region)
-    lawd_cd = _resolve_lawd_cd(region)
-    
-    # 법정동 코드가 기본값(종로구)이고 지역명이 종로구가 아닌 경우 경고
-    if lawd_cd == '11110' and '종로' not in region and '종로동' not in region:
-        print(f"[경고] 지역명 '{region}'에 대한 법정동 코드를 찾지 못해 기본값(종로구)을 사용합니다.")
-        print(f"[경고] 추출된 동 이름: '{dong}', 지역명: '{region}'")
-        # 서초동의 경우 명시적으로 처리
-        if '서초' in region and ('동' in region or dong == '서초동'):
-            print(f"[수정] 서초동을 서초구(11650)로 명시적으로 매핑합니다.")
-            lawd_cd = '11650'  # 서초구 코드
-    
-    # 서초동 명시적 처리 (위에서 처리되지 않은 경우)
-    if '서초' in region and ('동' in region or dong == '서초동') and lawd_cd != '11650':
-        print(f"[수정] 서초동을 서초구(11650)로 명시적으로 매핑합니다.")
-        lawd_cd = '11650'
-    
-    lawd_cds_to_try = [lawd_cd]
-    if dong and dong != region:
-        dong_to_gu = {
-            '청담동': '강남구', '역삼동': '강남구', '삼성동': '강남구', '대치동': '강남구',
-            '압구정동': '강남구', '논현동': '강남구', '신사동': '강남구', '도곡동': '강남구',
-            '화곡동': '강서구', '등촌동': '강서구', '마곡동': '강서구', '가양동': '강서구',
-            '서교동': '마포구', '연남동': '마포구', '성산동': '마포구', '합정동': '마포구',
-            '문래동': '영등포구', '여의도동': '영등포구', '당산동': '영등포구', '신길동': '영등포구',
-            '대림동': '영등포구', '양평동': '영등포구', '도림동': '영등포구',
-            '독산동': '금천구', '가산동': '금천구', '시흥동': '금천구',
-            '신림동': '관악구', '봉천동': '관악구', '남현동': '관악구',
-            '잠실동': '송파구', '신천동': '송파구', '방이동': '송파구', '석촌동': '송파구',
-            '명일동': '강동구', '고덕동': '강동구', '상일동': '강동구',
-            '사직동': '종로구', '삼청동': '종로구', '혜화동': '종로구',
-            '서초동': '서초구',
-        }
-        if dong in dong_to_gu:
-            gu_name = dong_to_gu[dong]
-            for gu, code in SEOUL_SIGUNGU_CODES.items():
-                if gu == gu_name:
-                    lawd_cds_to_try = [code]
-                    break
-        else:
-            # dong_to_gu에 없는 동은 _resolve_lawd_cd에서 찾은 lawd_cd 사용
-            # (예: 석촌동은 송파구이므로 11710)
-            pass
-    
-    # 한국 시간 (UTC+9)
-    kst = timezone(timedelta(hours=9))
-    now = datetime.now(kst)
-    # 조회 범위 제한: 3개월 -> 2개월로 축소
-    # 연도 변경을 고려한 날짜 계산
-    deal_ymds = []
-    for i in range(2):
-        year = now.year
-        month = now.month - i
-        # 월이 0 이하가 되면 이전 연도로 이동
-        while month <= 0:
-            month += 12
-            year -= 1
-        # 월이 12를 초과하면 다음 연도로 이동
-        while month > 12:
-            month -= 12
-            year += 1
-        deal_ymds.append(f"{year}{month:02d}")
-    
-    # DB에서 먼저 매매 데이터 조회 (캐싱 활용, 정확한 동 이름 필터링)
-    sale_properties = []
-    if db and RealTransaction:
-        for lawd_cd_try in lawd_cds_to_try:
-            for deal_ymd in deal_ymds:
-                db_transactions = _load_transactions_from_db(RealTransaction, lawd_cd_try, deal_ymd, dong)
-                if db_transactions:
-                    # _load_transactions_from_db에서 이미 필터링했으므로 추가 필터링 불필요
-                    for item in db_transactions:
-                        price = item.get('거래금액', 0)
-                        sale_properties.append({
-                            'apt_name': item.get('아파트', '이름 없음'),
-                            'dong_name': item.get('법정동', ''),
-                            'jibun': item.get('지번', ''),
-                            'area': item.get('전용면적', ''),
-                            'floor': item.get('층', ''),
-                            'build_year': item.get('건축년도', ''),
-                            'sale_price': price,
-                            'sale_price_formatted': _format_price_to_eok(price) if price else item.get('거래금액원문', '가격 정보 없음'),
-                            'deal_date': item.get('거래일자', ''),
-                            'raw_data': item
-                        })
-    
-    # DB에 없는 데이터만 API로 조회 (병렬 처리)
-    # 전세 데이터는 DB에 저장되지 않으므로 항상 API 호출 필요
-    api_tasks = []
-    for lawd_cd_try in lawd_cds_to_try:
-        for deal_ymd in deal_ymds:
-            # 매매 데이터는 DB에 있는지 확인
-            sale_in_db = False
-            if db and RealTransaction:
-                db_transactions = _load_transactions_from_db(RealTransaction, lawd_cd_try, deal_ymd, dong)
-                if db_transactions:
-                    sale_in_db = True
-            
-            # 매매 데이터가 DB에 없으면 API 호출
-            if not sale_in_db:
-                api_tasks.append(('sale', lawd_cd_try, deal_ymd))
-            
-            # 전세 데이터는 항상 API 호출 (DB에 저장되지 않음)
-            api_tasks.append(('rent', lawd_cd_try, deal_ymd))
-    
-    # 병렬 처리로 API 호출
-    def fetch_task(task_type, lawd_cd_try, deal_ymd):
-        if task_type == 'sale':
-            result, status_code = _fetch_rtms(lawd_cd_try, deal_ymd, page_no=1, rows=100)
-            if status_code == 200:
-                transactions = _filter_by_dong(result.get('transactions', []), dong)
-                return ('sale', transactions)
-        else:  # rent
-            result, status_code = _fetch_rent_rtms(lawd_cd_try, deal_ymd, page_no=1, rows=100)
-            if status_code == 200:
-                transactions = _filter_by_dong(result.get('transactions', []), dong)
-                return ('rent', transactions)
-            return None
-    rent_properties = []
-    rent_api_count = 0
-    rent_success_count = 0
-    if api_tasks:
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            futures = {executor.submit(fetch_task, task_type, lawd_cd, deal_ymd): (task_type, lawd_cd, deal_ymd) 
-            for task_type, lawd_cd, deal_ymd in api_tasks}
-            for future in as_completed(futures):
-                result = future.result()
-                if result:
-                    task_type, transactions = result
-                    if task_type == 'sale':
-                        for item in transactions:
-                            price = item.get('거래금액', 0)
-                            sale_properties.append({
-                                'apt_name': item.get('아파트', '이름 없음'),
-                                'dong_name': item.get('법정동', ''),
-                                'jibun': item.get('지번', ''),
-                                'area': item.get('전용면적', ''),
-                                'floor': item.get('층', ''),
-                                'build_year': item.get('건축년도', ''),
-                                'sale_price': price,
-                                'sale_price_formatted': _format_price_to_eok(price) if price else item.get('거래금액원문', '가격 정보 없음'),
-                                'deal_date': item.get('거래일자', ''),
-                                'raw_data': item
-                            })
-                    else:  # rent
-                        rent_api_count += 1
-                        if transactions:
-                            rent_success_count += 1
-                        for item in transactions:
-                            jeonse_price = item.get('전세금액', 0)
-                            monthly_rent = item.get('월세금액', 0)
-                            
-                            # 전세금액이 있거나 월세가 있는 경우 추가 (전세+월세 혼합도 포함)
-                            if jeonse_price or monthly_rent:
-                                # 전세+월세 혼합의 경우 전세금액을 우선 사용
-                                # 전세금액이 없으면 월세의 보증금을 전세금액으로 간주하지 않음
-                                if jeonse_price:
-                                    # 전세가가 합리적인 범위인지 확인 (최소 1000만원 이상)
-                                    if jeonse_price >= 1000:
-                                        rent_properties.append({
-                                            'apt_name': item.get('아파트', '이름 없음'),
-                                            'dong_name': item.get('법정동', ''),
-                                            'jibun': item.get('지번', ''),
-                                            'area': item.get('전용면적', ''),
-                                            'floor': item.get('층', ''),
-                                            'jeonse_price': jeonse_price,
-                                            'deal_date': item.get('거래일자', ''),
-                                            'raw_data': item
-                                        })
-                                    else:
-                                        print(f"[경고] 전세가({jeonse_price}만원)가 너무 낮습니다. 데이터 오류 가능성. 제외합니다.")
-        
-    # 매칭 로직 최적화: O(n*m) -> O(n) (딕셔너리 사용)
-    def parse_area(area_str):
-            if not area_str:
-                return None
-            try:
-                match = re.search(r'(\d+\.?\d*)', str(area_str))
-                return float(match.group(1)) if match else None
-            except (ValueError, TypeError):
-                return None
-    
-    # 전세 매물을 아파트명+동명으로 그룹화 (O(n))
-    rent_by_key = {}
-    for rent in rent_properties:
-        key = (rent['apt_name'], rent['dong_name'])
-        if key not in rent_by_key:
-            rent_by_key[key] = []
-        rent_by_key[key].append(rent)
-    
-    matched_properties = []
-    for sale in sale_properties:
-        matched_rent = None
-        best_match_score = 0
-        sale_area = parse_area(sale.get('area', ''))
-        sale_date = parse_date(sale.get('deal_date', ''))  # pyright: ignore[reportUndefinedVariable]
-        
-        # 해당 아파트+동의 전세 매물만 확인 (O(1) 조회)
-        key = (sale['apt_name'], sale['dong_name'])
-        candidate_rents = rent_by_key.get(key, [])
-        
-        for rent in candidate_rents:
-            match_score = 0
-            if sale.get('jibun') and rent.get('jibun'):
-                if sale['jibun'] == rent['jibun']:
-                    match_score += 3
-            elif not sale.get('jibun') and not rent.get('jibun'):
-                match_score += 1
-            rent_area = parse_area(rent.get('area', ''))
-            if sale_area and rent_area:
-                area_diff = abs(sale_area - rent_area)
-                if area_diff < 1:
-                    match_score += 2
-                elif area_diff < 5:
-                    match_score += 1
-            if sale.get('floor') and rent.get('floor') and sale['floor'] == rent['floor']:
-                match_score += 1
-            if match_score >= best_match_score and rent.get('jeonse_price'):
-                if match_score > best_match_score:
-                    best_match_score = match_score
-                    matched_rent = rent
-                elif match_score == best_match_score:
-                    rent_date = parse_date(rent.get('deal_date', ''))  # pyright: ignore[reportUndefinedVariable]
-                    if rent_date and sale_date:
-                        date_diff = abs((rent_date - sale_date).days)
-                        if date_diff <= 180:
-                            current_rent_date = parse_date(matched_rent.get('deal_date', '')) if matched_rent else None  # pyright: ignore[reportUndefinedVariable]
-                            if not current_rent_date or (rent_date > current_rent_date):
-                                matched_rent = rent
-                    elif rent_date and not matched_rent:
-                        matched_rent = rent
-                elif not matched_rent:
-                    best_match_score = match_score
-                    matched_rent = rent
-        if best_match_score < 1:
-            matched_rent = None
-        prop_data = {
-            'name': f"{sale['apt_name']} ({sale['area']}㎡, {sale['floor']}층)" if sale['area'] and sale['floor'] else sale['apt_name'],
-            'address': f"{region} {sale['dong_name']} {sale['jibun']}",
-            'price': sale['sale_price_formatted'],
-            'price_raw': sale['sale_price'],
-            'area': sale['area'],
-            'floor': sale['floor'],
-            'build_year': sale['build_year'],
-            'deal_date': sale['deal_date'],
-            'raw_data': sale['raw_data']
-        }
-        if matched_rent and matched_rent['jeonse_price'] and sale['sale_price']:
-            jeonse_price = matched_rent['jeonse_price']
-            sale_price = sale['sale_price']
-            
-            # 전세가와 매매가가 합리적인 범위인지 확인
-            # 전세가는 일반적으로 매매가의 50-90% 범위
-            # 만약 전세가가 매매가의 1% 미만이면 데이터 오류로 간주
-            if jeonse_price > 0 and sale_price > 0:
-                if jeonse_price < sale_price * 0.01:
-                    print(f"[경고] 전세가({jeonse_price}만원)가 매매가({sale_price}만원)의 1% 미만입니다. 데이터 오류 가능성.")
-                    # 이 경우 전세가율을 계산하지 않음
-                    prop_data['jeonse_price'] = None
-                    prop_data['jeonse_price_formatted'] = None
-                    prop_data['jeonse_rate'] = None
-                    prop_data['risk_level'] = 'unknown'
-                else:
-                    jeonse_rate = (jeonse_price / sale_price) * 100 if sale_price > 0 else None
-                    prop_data['jeonse_price'] = jeonse_price
-                    prop_data['jeonse_price_formatted'] = _format_price_to_eok(jeonse_price)
-                    prop_data['jeonse_rate'] = round(jeonse_rate, 2) if jeonse_rate else None
-            else:
-                jeonse_rate = None
-                prop_data['jeonse_price'] = None
-                prop_data['jeonse_price_formatted'] = None
-                prop_data['jeonse_rate'] = None
-            if jeonse_rate and jeonse_rate >= 80:
-                prop_data['risk_level'] = 'high'
-            elif jeonse_rate and jeonse_rate >= 60:
-                prop_data['risk_level'] = 'medium'
-            else:
-                prop_data['risk_level'] = 'low'
-        else:
-            prop_data['jeonse_price'] = None
-            prop_data['jeonse_price_formatted'] = None
-            prop_data['jeonse_rate'] = None
-            prop_data['risk_level'] = 'unknown'
-        matched_properties.append(prop_data)
-    return matched_properties
+    lawd_cd = _resolve_lawd_cd(region, fallback=None)
+    if not lawd_cd:
+        raise ValueError('지원하는 서울 자치구 또는 법정동을 입력하세요.')
+    district = next(name for name, code in SEOUL_SIGUNGU_CODES.items() if code == lawd_cd)
+    today = datetime.now(timezone(timedelta(hours=9))).date()
+    months = []
+    month_start = today.replace(day=1)
+    for _ in range(6):
+        months.append(month_start.strftime('%Y%m'))
+        month_start = (month_start - timedelta(days=1)).replace(day=1)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        jobs = {(kind, month): executor.submit(load_transaction_snapshot, kind, lawd_cd, month)
+                for kind in ('sale', 'rent') for month in months}
+        sales = [sale for month in months for sale in jobs['sale', month].result()]
+        try:
+            rents = [rent for month in months for rent in jobs['rent', month].result()]
+            rent_available = True
+        except TransactionSourceError:
+            rents, rent_available = [], False
+
+    candidates = {}
+    seen = set()
+    for rent in filter_transactions_by_region(rents, region):
+        deposit = rent.get('전세금액')
+        if rent.get('월세금액') != 0 or not deposit or deposit <= 0:
+            continue
+        fields = _comparison_fields(rent)
+        if fields is None:
+            continue
+        key = (rent['아파트'], rent['법정동'])
+        fingerprint = (key, fields, rent.get('층'), deposit, rent.get('계약구분'), rent.get('계약기간'))
+        if fingerprint not in seen:
+            candidates.setdefault(key, []).append((fields, deposit))
+            seen.add(fingerprint)
+
+    properties = []
+    for sale in filter_transactions_by_region(sales, region):
+        apt, dong = sale['아파트'], sale['법정동']
+        area, floor = sale['전용면적'], sale['층']
+        price = sale['거래금액']
+        deposit, samples = _estimate_jeonse(sale, candidates.get((apt, dong), []))
+        rate = round(deposit / price * 100, 2) if deposit is not None else None
+        level, score = 'unknown', None
+        if rate is not None:
+            level, score = ('high', 80) if rate >= 80 else ('medium', 60) if rate >= 60 else ('low', 20)
+        properties.append({
+            'name': f'{apt} ({area}㎡, {floor}층)' if area and floor else apt,
+            'address': ' '.join(part for part in (district, dong, sale.get('지번')) if part),
+            'price': _format_price_to_eok(price) if price else sale['거래금액원문'],
+            'price_raw': price, 'area': area, 'floor': floor, 'build_year': sale['건축년도'],
+            'deal_date': sale['거래일자'], 'jeonse_price': deposit,
+            'jeonse_price_formatted': _format_price_to_eok(deposit) if deposit is not None else None,
+            'jeonse_rate': rate, 'risk_level': level, 'risk_score': score,
+            'comparison_sample_count': samples if rent_available else None,
+            'comparison_status': ('available' if rate is not None else
+                                  'insufficient' if rent_available else 'source_unavailable'),
+            'comparison_confidence': ('limited' if samples < 5 else 'moderate') if rate is not None else None,
+        })
+    return properties
+
 
 def analyze_property_warnings(prop):
     """매물 위험 요소 분석"""
@@ -796,9 +551,13 @@ def analyze_property_warnings(prop):
     if '빌라' in prop.get('name', '') or '오피스텔' in prop.get('name', ''):
         warnings.append('빌라/오피스텔은 아파트보다 전세사기 위험이 높을 수 있습니다.')
     jeonse_rate = prop.get('jeonse_rate')
-    if jeonse_rate:
+    if prop.get('comparison_status') == 'source_unavailable':
+        warnings.append('전세 자료를 불러오지 못해 전세가율을 판단할 수 없습니다.')
+    elif jeonse_rate is None:
+        warnings.append('비교 가능한 전세 자료가 부족해 전세가율을 판단할 수 없습니다.')
+    else:
         if jeonse_rate >= 80:
-            warnings.append(f'전세가율이 {jeonse_rate}%로 매우 높습니다. 전세사기 위험이 높을 수 있습니다.')
+            warnings.append(f'전세가율이 {jeonse_rate}%로 높습니다. 보증금과 권리관계를 추가로 확인하세요.')
         elif jeonse_rate >= 70:
             warnings.append(f'전세가율이 {jeonse_rate}%로 높습니다. 계약 시 주의가 필요합니다.')
         elif jeonse_rate >= 60:

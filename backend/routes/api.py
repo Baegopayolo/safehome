@@ -1,8 +1,13 @@
 """API 라우트 핸들러"""
+import re
 from flask import jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime, timezone, timedelta
-from utils import (_extract_dong, _resolve_lawd_cd, _fetch_rtms, _save_transactions_to_db, _load_transactions_from_db, get_heatmap_data, _save_heatmap_to_db, fetch_properties_by_region, analyze_property_warnings, generate_safety_checklist, _filter_by_dong)
+from utils import (
+    TransactionSourceError, _resolve_lawd_cd, load_transaction_snapshot,
+    filter_transactions_by_region, get_heatmap_data, _save_heatmap_to_db,
+    fetch_properties_by_region, analyze_property_warnings, generate_safety_checklist,
+)
 from models import SearchHistory, Favorite, Review, Report, Notification, RealTransaction, HeatmapData
 from time_utils import format_kst_datetime, get_kst_now
 
@@ -121,7 +126,7 @@ def register_api_routes(app, db):
                     avg_rate = sum(p['jeonse_rate'] for p in properties_with_rate) / len(properties_with_rate)
                     score = round(avg_rate)
                 else:
-                    score = 0
+                    continue
                 updated_data.append({
                     'region': region,
                     'score': score,
@@ -132,90 +137,55 @@ def register_api_routes(app, db):
             return jsonify({'success': True, 'message': f'{len(updated_data)}개 지역 데이터가 전세가율 기반으로 업데이트되었습니다.'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+    def property_payload(prop):
+        fields = ('name', 'price', 'price_raw', 'address', 'area', 'floor', 'build_year',
+                  'deal_date', 'jeonse_rate', 'risk_level', 'risk_score',
+                  'comparison_sample_count', 'comparison_status', 'comparison_confidence')
+        return dict({field: prop.get(field) for field in fields},
+                    jeonse_price=prop.get('jeonse_price_formatted') or '-',
+                    jeonse_price_raw=prop.get('jeonse_price'),
+                    warnings=analyze_property_warnings(prop),
+                    checklist=generate_safety_checklist(prop))
+
     @app.route('/api/analyze')
     @app.route('/analyze')
     def analyze():
+        region = request.args.get('region', '').strip()
+        if not region:
+            return jsonify(error='지역명을 입력하세요'), 400
         try:
-            region = request.args.get('region', '').strip()
-            if not region:
-                return jsonify({'error': '지역명을 입력하세요'}), 400
-            
-            try:
-                properties = fetch_properties_by_region(region, db, RealTransaction)
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                import traceback
-                traceback.print_exc()
-                return jsonify({'error': f'매물 정보를 가져오는 중 오류가 발생했습니다: {str(e)}'}), 500
-            if not properties:
-                return jsonify({'properties': []})
-            analyzed = []
-            for prop in properties:
-                try:
-                    warnings = analyze_property_warnings(prop) if prop else []
-                    checklist = generate_safety_checklist(prop) if prop else []
-                    risk_score = len(warnings) * 20 if warnings else 0
-                    jeonse_rate = prop.get('jeonse_rate') if prop else None
-                    if jeonse_rate:
-                        if jeonse_rate >= 80:
-                            risk_score = max(risk_score, 80)
-                        elif jeonse_rate >= 60:
-                            risk_score = max(risk_score, 60)
-                    analyzed.append({
-                        'name': prop.get('name', '매물명') if prop else '매물명',
-                        'price': prop.get('price') if prop else None,
-                        'price_raw': prop.get('price_raw') if prop else None,
-                        'address': prop.get('address') if prop else None,
-                        'area': prop.get('area') if prop else None,
-                        'floor': prop.get('floor') if prop else None,
-                        'build_year': prop.get('build_year') if prop else None,
-                        'deal_date': prop.get('deal_date') if prop else None,
-                        'jeonse_price': prop.get('jeonse_price_formatted') if prop and prop.get('jeonse_price_formatted') else '-',
-                        'jeonse_price_raw': prop.get('jeonse_price') if prop else None,
-                        'jeonse_rate': prop.get('jeonse_rate') if prop else None,
-                        'risk_level': prop.get('risk_level') if prop else None,
-                        'risk_score': risk_score,
-                        'warnings': warnings,
-                        'checklist': checklist
-                    })
-                except Exception as e:
-                    print(f"[에러] 매물 분석 중 오류 (prop: {prop}): {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    continue
-            return jsonify({'properties': analyzed})
-        except Exception as e:
-            print(f"[에러] /analyze 엔드포인트 오류: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'error': f'서버 오류가 발생했습니다: {str(e)}'}), 500
+            properties = fetch_properties_by_region(region, db, RealTransaction)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        except TransactionSourceError:
+            return jsonify(error='매매 실거래 자료를 불러오지 못했습니다. 잠시 후 다시 시도하세요.'), 502
+        return jsonify(properties=[property_payload(prop) for prop in properties])
+
     @app.route('/api/real-transactions')
     def api_real_transactions():
+        region = request.args.get('region', '').strip()
+        lawd_cd = request.args.get('lawd_cd') or _resolve_lawd_cd(region, fallback=None)
+        deal_ymd = request.args.get('deal_ymd') or datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m')
         try:
-            region = request.args.get('region', '').strip()
-            lawd_cd = request.args.get('lawd_cd') or _resolve_lawd_cd(region)
-            kst = timezone(timedelta(hours=9))
-            deal_ymd = request.args.get('deal_ymd') or datetime.now(kst).strftime('%Y%m')
             page_no = int(request.args.get('pageNo', 1))
             rows = int(request.args.get('numOfRows', 30))
-            dong = _extract_dong(region) if region else ''
-            db_transactions = _load_transactions_from_db(RealTransaction, lawd_cd, deal_ymd, dong)
-            if db_transactions:
-                return jsonify({'transactions': db_transactions[:rows]}), 200
-            data, status = _fetch_rtms(lawd_cd, deal_ymd, page_no, rows)
-            if status == 200:
-                transactions = data.get('transactions', [])
-                if dong:
-                    transactions = _filter_by_dong(transactions, dong)
-                try:
-                    _save_transactions_to_db(db, RealTransaction, lawd_cd, deal_ymd, region, dong, transactions)
-                except Exception:
-                    pass
-                data['transactions'] = transactions
-            return jsonify(data), status
-        except Exception as e:
-            return jsonify({'error': f'Server error: {str(e)}'}), 500
+            if not lawd_cd or not re.fullmatch(r'[0-9]{5}', lawd_cd):
+                raise ValueError()
+            if not re.fullmatch(r'[0-9]{6}', deal_ymd):
+                raise ValueError()
+            datetime.strptime(deal_ymd + '01', '%Y%m%d')
+            if not 1 <= page_no <= 20000 or not 1 <= rows <= 100:
+                raise ValueError()
+        except ValueError:
+            return jsonify(error='지역코드, 거래월 또는 페이지 요청이 올바르지 않습니다.'), 400
+        try:
+            transactions = filter_transactions_by_region(load_transaction_snapshot('sale', lawd_cd, deal_ymd), region)
+        except TransactionSourceError:
+            return jsonify(error='매매 실거래 자료를 불러오지 못했습니다. 잠시 후 다시 시도하세요.'), 502
+        offset = (page_no - 1) * rows
+        return jsonify(transactions=transactions[offset:offset + rows], total_count=len(transactions),
+                       page_no=page_no, page_size=rows, has_more=offset + rows < len(transactions))
+
     @app.route('/api/advanced-search')
     def advanced_search():
         region = request.args.get('region', '')
@@ -223,7 +193,12 @@ def register_api_routes(app, db):
         max_price = request.args.get('max_price', type=int)
         property_type = request.args.get('property_type', '')
         risk_level = request.args.get('risk_level', '')
-        properties = fetch_properties_by_region(region, db, RealTransaction)
+        try:
+            properties = fetch_properties_by_region(region.strip(), db, RealTransaction)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        except TransactionSourceError:
+            return jsonify(error='매매 실거래 자료를 불러오지 못했습니다. 잠시 후 다시 시도하세요.'), 502
         filtered_properties = []
         for prop in properties:
             if min_price or max_price:
@@ -239,40 +214,9 @@ def register_api_routes(app, db):
                     pass
             if property_type and property_type not in prop.get('name', ''):
                 continue
-            warnings = analyze_property_warnings(prop)
-            risk_score = len(warnings) * 20
-            jeonse_rate = prop.get('jeonse_rate')
-            if jeonse_rate:
-                if jeonse_rate >= 80:
-                    risk_score = max(risk_score, 80)
-                elif jeonse_rate >= 60:
-                    risk_score = max(risk_score, 60)
-            if risk_level == 'low':
-                if risk_score >= 40 or (jeonse_rate and jeonse_rate >= 60):
-                    continue
-            elif risk_level == 'medium':
-                if risk_score < 20 or risk_score >= 60 or (jeonse_rate and (jeonse_rate < 60 or jeonse_rate >= 80)):
-                    continue
-            elif risk_level == 'high':
-                if risk_score < 60 and (not jeonse_rate or jeonse_rate < 80):
-                    continue
-            filtered_properties.append({
-                'name': prop.get('name', '매물명'),
-                'price': prop.get('price'),
-                'price_raw': prop.get('price_raw'),
-                'address': prop.get('address'),
-                'area': prop.get('area'),
-                'floor': prop.get('floor'),
-                'build_year': prop.get('build_year'),
-                'deal_date': prop.get('deal_date'),
-                'jeonse_price': prop.get('jeonse_price_formatted') if prop.get('jeonse_price_formatted') else '-',
-                'jeonse_price_raw': prop.get('jeonse_price'),
-                'jeonse_rate': prop.get('jeonse_rate'),
-                'risk_level': prop.get('risk_level'),
-                'warnings': warnings,
-                'checklist': generate_safety_checklist(prop),
-                'risk_score': risk_score
-            })
+            if risk_level and prop.get('risk_level') != risk_level:
+                continue
+            filtered_properties.append(property_payload(prop))
         return jsonify({'properties': filtered_properties})
     @app.route('/api/search-history', methods=['GET', 'POST'])
     def search_history():
@@ -449,13 +393,49 @@ def register_api_routes(app, db):
             db.session.add(report)
             db.session.commit()
             return jsonify({'status': 'success', 'report_id': report.id})
+    @app.route('/api/admin/reports', methods=['GET'])
+    @login_required
+    def admin_list_reports():
+        if not getattr(current_user, 'is_admin', False):
+            return jsonify({'error': '관리자만 사용할 수 있습니다'}), 403
+        report_type_map = {
+            'suspicious': '의심스러운 매물',
+            'scam': '전세사기 의심',
+            'fake': '가짜 매물',
+            'other': '기타'
+        }
+        all_reports = Report.query.order_by(Report.created_at.desc()).all()
+        return jsonify([{
+            'id': r.id,
+            'username': r.user.username if r.user else '알 수 없음',
+            'region': r.region,
+            'property_address': r.property_address or '주소 정보 없음',
+            'report_type': r.report_type,
+            'report_type_kr': report_type_map.get(r.report_type, r.report_type),
+            'status': r.status,
+            'description': r.description or '',
+            'created_at': format_kst_datetime(r.created_at)
+        } for r in all_reports])
+    @app.route('/api/admin/reports/<int:report_id>/status', methods=['PUT'])
+    @login_required
+    def admin_update_report_status(report_id):
+        if not getattr(current_user, 'is_admin', False):
+            return jsonify({'error': '관리자만 사용할 수 있습니다'}), 403
+        data = request.get_json() or {}
+        new_status = data.get('status')
+        if new_status not in ('pending', 'investigating', 'resolved'):
+            return jsonify({'error': '올바르지 않은 상태 값입니다'}), 400
+        report = Report.query.get_or_404(report_id)
+        report.status = new_status
+        db.session.commit()
+        return jsonify({'status': 'success'})
     @app.route('/api/notifications', methods=['GET', 'PUT'])
     def notifications():
         if request.method == 'PUT':
             if current_user.is_authenticated:
                 data = request.get_json()
                 notification = Notification.query.get(data['id'])
-                if notification:
+                if notification and notification.user_id in (current_user.id, None):
                     notification.is_read = True
                     db.session.commit()
             return jsonify({'status': 'success'})
@@ -545,6 +525,8 @@ def register_api_routes(app, db):
     @login_required
     def delete_region_data():
         """특정 지역의 모든 데이터 삭제 (관리자용)"""
+        if not current_user.is_admin:
+            return jsonify(error="관리자만 사용할 수 있습니다"), 403
         data = request.get_json()
         region_name = data.get('region', '').strip()
         

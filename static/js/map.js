@@ -1283,8 +1283,9 @@ function updateRealTransactionResults(region, properties) {
     }
     
     const html = properties.slice(0, 10).map(prop => {
-        const jeonseRateText = prop.jeonse_rate ? `${prop.jeonse_rate}%` : '정보 없음';
-        const jeonseRateColor = prop.jeonse_rate >= 80 ? '#dc3545' : prop.jeonse_rate >= 60 ? '#ffc107' : '#28a745';
+        const jeonseRateText = prop.jeonse_rate == null ? '판단 불가' : `${prop.jeonse_rate}%`;
+        const jeonseRateColor = prop.jeonse_rate == null ? '#6b7280' :
+            prop.jeonse_rate >= 80 ? '#dc3545' : prop.jeonse_rate >= 60 ? '#a16207' : '#166534';
         return `
         <div style="padding: 10px; border-bottom: 1px solid #eee; font-size: 13px;">
             <div style="font-weight: 600; margin-bottom: 4px;">${prop.name || '정보없음'}</div>
@@ -1292,9 +1293,9 @@ function updateRealTransactionResults(region, properties) {
             <div style="color: #1565c0; font-weight: 600; margin-bottom: 2px;">
                 매매가: ${prop.price || '정보 없음'}
             </div>
-            ${prop.jeonse_price ? `
+            ${prop.jeonse_price_raw != null ? `
             <div style="color: #666; margin-bottom: 2px;">
-                전세가: ${prop.jeonse_price}
+                전세 보증금 중앙값: ${prop.jeonse_price}
             </div>
             ` : ''}
             <div style="margin-top: 4px;">

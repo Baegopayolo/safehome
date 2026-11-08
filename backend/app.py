@@ -5,9 +5,12 @@ from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 
 app = Flask(__name__, template_folder='../frontend', static_folder='../static')
+if os.getenv('TRUST_NGINX_PROXY') == '1':
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 CORS(app)
 os.environ['TZ'] = 'Asia/Seoul'
 secret_key = os.getenv('SECRET_KEY')
@@ -50,10 +53,11 @@ models.HeatmapData = HeatmapData
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-from routes import pages, auth, api
+from routes import pages, auth, api, oauth
 pages.register_page_routes(app)
 auth.register_auth_routes(app, db, bcrypt)
 api.register_api_routes(app, db)
+oauth.register_oauth_routes(app, db, bcrypt)
 from dashboard import register_dashboard
 register_dashboard(app, db)
 

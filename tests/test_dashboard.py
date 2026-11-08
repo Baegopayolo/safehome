@@ -304,7 +304,7 @@ for path in ('/','/map','/searchscan','/self-check','/scam-types','/login','/rev
     assert c.get(path).status_code==200,path
 assert c.get('/api/analyze').status_code==400
 assert c.get('/analyze').status_code==400
-with patch('routes.api._fetch_rtms',return_value=({'transactions':[]},200)):
+with patch('routes.api.load_transaction_snapshot',return_value=[]):
     assert c.get('/api/real-transactions?lawd_cd=11110&deal_ymd=202610').status_code==200
 with patch('routes.api.fetch_properties_by_region',return_value=[]):
     assert c.get('/api/analyze?region=종로구').json=={'properties':[]}

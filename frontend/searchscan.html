@@ -44,12 +44,13 @@
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label for="risk-level">위험도</label>
+                        <label for="risk-level">참고 전세가율</label>
                         <select id="risk-level">
                             <option value="">전체</option>
-                            <option value="low">낮음 (0-40점)</option>
-                            <option value="medium">보통 (40-60점)</option>
-                            <option value="high">높음 (60점 이상)</option>
+                            <option value="low">60% 미만</option>
+                            <option value="medium">60% 이상 80% 미만</option>
+                            <option value="high">80% 이상</option>
+                            <option value="unknown">판단 불가</option>
                         </select>
                     </div>
                 </div>
@@ -59,6 +60,7 @@
                 </div>
             </div>
         </div>
+        <p class="comparison-evidence">참고 전세가율은 같은 단지의 유사 면적(±1㎡)과 계약일(±30일) 조건에 맞는 순수 전세 보증금의 중앙값을 매매 실거래가와 비교합니다. 최소 3건이 필요하며 계약 안전을 판정하는 지표는 아닙니다.</p>
         <section class="real-transactions-section">
             <div class="real-transactions-header">
                 <div class="header-left">
@@ -168,7 +170,7 @@
             </div>
         </div>
     </main>
-    <script src="{{ url_for('static', filename='js/searchscan.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/searchscan.js', v='p1-comparables') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>
