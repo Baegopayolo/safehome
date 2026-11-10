@@ -21,6 +21,8 @@
 5. `/home/ubuntu/safehome-current`가 준비한 릴리스를 가리키도록 심볼릭 링크를 전환합니다. 새 링크를 임시 이름으로 만든 뒤 같은 디렉터리에서 `mv -Tf`로 교체하면 경로가 비는 순간을 피할 수 있습니다. 새 릴리스의 `deploy/safehome*.service`와 `deploy/safehome*.timer`를 `/etc/systemd/system/`에 설치합니다. `systemctl daemon-reload` 후 웹을 재시작하고 수집·백업·복원·감시 타이머를 활성화합니다.
 6. Nginx는 Gunicorn의 `127.0.0.1:8000`에만 프록시하고 `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-For`를 직접 설정합니다. 유닛의 `TRUST_NGINX_PROXY=1`은 이 단일 프록시 배치에서만 사용합니다. 메인·로그인·개인정보처리방침·대시보드 API를 확인하고, 웹 서비스의 `MainPID`에 해당하는 `/proc/<PID>/cwd`가 배포한 릴리스의 `backend`를 가리키는지 확인합니다.
 
+Nginx에서 `/static/`을 직접 제공하는 경우 `alias /home/ubuntu/safehome-current/static/;`을 사용합니다. 릴리스 전환 후 공개 URL에서 HTML뿐 아니라 변경된 JS·CSS도 확인하세요. 버전 문자열이 바뀐 파일은 이전 브라우저 캐시와 별도 URL로 제공됩니다.
+
 웹 검증에 실패하면 이전 릴리스로 링크를 되돌리고 서비스를 재시작합니다. 이 구조로 처음 전환한 경우 백업한 기존 유닛 파일을 복구하고 `daemon-reload` 후 서비스를 재시작합니다.
 
 ## 환경 변수 및 키

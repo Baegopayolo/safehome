@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 지역별 참고 전세가율</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-1') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-2') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
@@ -134,7 +134,7 @@
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-1') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-2') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>
