@@ -6,104 +6,25 @@ const scannerBaseUrl = typeof SAFEHOME_CONFIG !== 'undefined' ? SAFEHOME_CONFIG.
 let currentFilter = 'all';
 let regions = [];
 
-// 공통 위험도 계산 함수 (전세가율 기준)
-// 기준: >= 80% (위험), >= 60% (주의), < 60% (안전)
-function calculateRiskLevel(score) {
-    if (score === null || score === undefined || isNaN(score)) {
-        return { category: 'safe', text: '안전', color: '#28a745' };
+const unknownMapIndicator = { category: 'unknown', text: '판단 불가', color: '#6b7280' };
+
+function getMapIndicator(region) {
+    const score = region.score;
+    if (region.status !== 'available' || !Number.isFinite(score) || score <= 0) {
+        return unknownMapIndicator;
     }
-    
-    if (score >= 80) {
-        return { category: 'danger', text: '위험', color: '#dc3545' };
-    } else if (score >= 60) {
-        return { category: 'warning', text: '주의', color: '#ffc107' };
-    } else {
-        return { category: 'safe', text: '안전', color: '#28a745' };
-    }
+    if (score >= 80) return { category: 'danger', text: '높음', color: '#dc3545' };
+    if (score >= 60) return { category: 'warning', text: '중간', color: '#a16207' };
+    return { category: 'safe', text: '낮음', color: '#166534' };
 }
 
-// 전역으로 노출 (다른 스크립트에서도 사용 가능)
-window.calculateRiskLevel = calculateRiskLevel;
+window.regionData = regionData;
+window.regions = regions;
 
-// 전역 변수로 노출 (React 모듈과 공유)
-if (typeof window.regionData === 'undefined') {
-    window.regionData = regionData;
-} else {
-    regionData = window.regionData;
-}
-if (typeof window.regions === 'undefined') {
-    window.regions = regions;
-} else {
-    regions = window.regions;
-}
-
-// localStorage에서 전세가율 데이터 복원
-function restoreJeonseRatesFromStorage() {
-    try {
-        const storedRates = JSON.parse(localStorage.getItem('regionJeonseRates') || '{}');
-        const now = Date.now();
-        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7일
-        
-        // window.regionData가 초기화된 후에 복원
-        if (!window.regionData) {
-            window.regionData = {};
-        }
-        
-        let restoredCount = 0;
-        Object.keys(storedRates).forEach(region => {
-            const data = storedRates[region];
-            // 7일 이상 된 데이터는 제거
-            if (!data.timestamp || (now - data.timestamp > maxAge)) {
-                delete storedRates[region];
-                return;
-            }
-            
-            // regionData에 복원 (regionData[region]이 없어도 생성)
-            if (!window.regionData[region]) {
-                window.regionData[region] = {};
-            }
-            
-            window.regionData[region].calculatedScore = data.score;
-            window.regionData[region].riskLevel = {
-                category: data.category,
-                text: data.text,
-                color: data.color
-            };
-            restoredCount++;
-        });
-        
-        // 오래된 데이터 제거 후 다시 저장
-        localStorage.setItem('regionJeonseRates', JSON.stringify(storedRates));
-    } catch (e) {
-        console.warn('[전세가율 복원] localStorage 복원 실패:', e);
-    }
-}
-
-// [초기화] 페이지 로드 시 실행
 document.addEventListener('DOMContentLoaded', function() {
-    // React 모듈이 로드되었는지 확인 (React 모듈이 지도 렌더링을 담당)
-    const isReactModuleLoaded = typeof window.initMapModule === 'function';
-    
-    // React 모듈이 없을 때만 기존 방식으로 지도 초기화
-    if (!isReactModuleLoaded) {
-        initMap();
-    }
-    
-    // 이벤트 리스너는 항상 설정 (검색, 필터 등 기능)
+    initMap();
     setupEventListeners();
-    
-    // localStorage에서 전세가율 데이터 복원 (지도 로드 후)
-    setTimeout(() => {
-        restoreJeonseRatesFromStorage();
-        // 복원 후 사이드바 업데이트
-        if (typeof updateRegionList === 'function') {
-            updateRegionList();
-        }
-        if (typeof loadRecentSearches === 'function') {
-            loadRecentSearches();
-        }
-    }, 1500); // 지도와 히트맵 데이터 로드 후 복원
-    
+
     // URL 파라미터에서 region이 있으면 자동 검색
     const urlParams = new URLSearchParams(window.location.search);
     const regionParam = urlParams.get('region');
@@ -205,13 +126,11 @@ function setupEventListeners() {
 
 // 1. 지도 생성 및 히트맵(기본 데이터) 로드
 function initMap() {
-    // React 모듈이 이미 지도를 생성했는지 확인
-    if (window.map && typeof window.map.setCenter === 'function') {
-        map = window.map; // React 모듈이 생성한 지도 인스턴스 사용
-        // 히트맵 데이터는 React 모듈이 이미 로드했으므로 여기서는 로드하지 않음
+    if (!window.kakao?.maps) {
+        document.querySelector('.map-title').textContent = '지도를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
         return;
     }
-    
+
     const mapContainer = document.getElementById('map');
     const mapOption = {
         center: new kakao.maps.LatLng(37.566826, 126.9786567), // 서울 시청
@@ -221,8 +140,8 @@ function initMap() {
     // 전역으로도 노출
     window.map = map;
 
-    // 기본 히트맵 데이터 로드 (백엔드 DB/더미 데이터 사용)
-    fetch('/heatmap')
+    // 기본 지도 위치와 검증 상태를 읽습니다.
+    fetch('/heatmap', { cache: 'no-store' })
         .then(response => {
             if (!response.ok) {
                 console.error('히트맵 API 호출 실패:', response.status, response.statusText);
@@ -260,112 +179,24 @@ function initMap() {
                 return;
             }
                         
-            regions = validData.map(region => ({
-                ...region,
-                category: region.score >= 80 ? 'danger' : region.score >= 60 ? 'warning' : 'safe'
-            }));
-            
-            // 전역 변수에도 저장
+            regions = validData.map(region => ({ ...region, indicator: getMapIndicator(region) }));
             window.regions = regions;
-            window.regionData = regionData;
-            
-            updateStats();
-            updateRegionList();
-            
-            // 지도에 원 그리기
-            let circleCount = 0;
-            validData.forEach(region => {
-                try {
-                // 위험도에 따른 색상 결정 (전세가율 기반: 80% 이상 위험, 60-79% 주의, 60% 미만 안전)
-                let color = '#28a745'; // 안전 (초록) - 전세가율 60% 미만
-                if (region.score >= 80) color = '#dc3545'; // 위험 (빨강) - 전세가율 80% 이상
-                else if (region.score >= 60) color = '#ffc107'; // 주의 (노랑) - 전세가율 60-79%
 
+            for (const region of regions) {
+                const position = new kakao.maps.LatLng(region.lat, region.lng);
                 const circle = new kakao.maps.Circle({
-                    center: new kakao.maps.LatLng(region.lat, region.lng),
-                    radius: 400, // 동 넓이에 맞게 조정 (약 0.5km²)
-                    fillColor: color,
-                    fillOpacity: 0.4, // 배경 히트맵은 투명하게
+                    center: position,
+                    radius: 400,
+                    fillColor: region.indicator.color,
+                    fillOpacity: 0.4,
                     strokeWeight: 0
                 });
-                circle.setMap(map);
-                    circleCount++;
-                
-                const scannerUrl = `${scannerBaseUrl}?region=${encodeURIComponent(region.region)}`;
-                // 전세가율 기반 상태 텍스트
-                let statusText = '안전';
-                if (region.score >= 80) statusText = '위험 (전세가율 높음)';
-                else if (region.score >= 60) statusText = '주의 (전세가율 보통)';
-                
-                    // 즐겨찾기 버튼을 포함한 정보창 내용
-                    const favoriteId = `favorite-${region.region.replace(/\s/g, '-')}`;
-                const content = `
-                        <div class="infowindow-content" style="padding:15px; min-width:220px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                <strong style="font-size:16px;">${region.region}</strong>
-                                <button id="${favoriteId}" onclick="toggleFavorite('${region.region}', '${favoriteId}')" 
-                                        style="background:none; border:none; font-size:20px; cursor:pointer; padding:0; line-height:1;">
-                                    ⭐
-                                </button>
-                            </div>
-                            <div style="margin-bottom:8px;">
-                        평균 전세가율: <strong>${typeof region.score === 'number' ? region.score.toFixed(1) : region.score}%</strong><br>
-                                상태: <span style="color: ${color}">${statusText}</span>
-                            </div>
-                            <div style="display:flex; gap:6px;">
-                                <a href="${scannerUrl}" 
-                                   style="flex:1; background:#1565c0; color:white; text-align:center; padding:6px; text-decoration:none; border-radius:4px; font-size:12px;">
-                                   매물 분석
-                                </a>
-                                <button onclick="searchAddressFromFavorite('${region.region}')" 
-                                        style="flex:1; background:#28a745; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
-                                    지도 이동
-                                </button>
-                            </div>
-                    </div>`;
-                
-                // InfoWindow는 생성하지 않음 (검색 결과 InfoWindow만 사용)
-
-                regionData[region.region] = {
-                    circle: circle,
-                    infowindow: null, // InfoWindow 제거
-                    category: region.score >= 80 ? 'danger' : region.score >= 60 ? 'warning' : 'safe',
-                    data: region
-                };
-                
-                // 원 클릭 시 즉시 검색 함수 호출 (검색 결과 InfoWindow 자동 표시)
-                kakao.maps.event.addListener(circle, 'click', function() {
-                    // 이전 실거래 원 제거 (중복 방지)
-                    clearRealTransactionCircles();
-                    
-                    // 기존 정보창 모두 닫기 (전역 변수 사용)
-                    const globalRegionData = window.regionData || regionData;
-                    const globalMap = window.map || map;
-                    Object.values(globalRegionData).forEach(data => {
-                        if (data.infowindow) data.infowindow.close();
-                    });
-                    if (window.realTxInfoWindow) {
-                        window.realTxInfoWindow.close();
-                        window.realTxInfoWindow = null;
-                    }
-                    
-                    // 검색 입력창에 지역명 설정
-                    const searchInput = document.getElementById('address-search');
-                    if (searchInput) {
-                        searchInput.value = region.region;
-                    }
-                    
-                    // 검색 함수 호출하여 검색 결과 InfoWindow 즉시 표시
-                    if (window.searchAddress) {
-                        window.searchAddress();
-                    } else if (window.searchAddressFromMap) {
-                        window.searchAddressFromMap(region.region);
-                    }
-                });
-            } catch (error) {
-                console.error(`[히트맵] ${region.region} 원 생성 실패:`, error);
+                regionData[region.region] = { circle, category: region.indicator.category, data: region };
+                kakao.maps.event.addListener(circle, 'click', () => selectMapRegion(region.region, position));
             }
-            });
+            filterMapCircles();
+            updateStats();
+            updateRegionList();
         })
         .catch(error => {
             console.error('[히트맵] 데이터 로드 중 오류:', error);
@@ -377,6 +208,14 @@ function initMap() {
     
     // 즐겨찾기 목록 로드
     loadFavorites();
+}
+
+function selectMapRegion(region, position) {
+    clearRealTransactionCircles();
+    map.setCenter(position);
+    map.setLevel(5);
+    document.getElementById('address-search').value = region;
+    loadRealTransactionsForMap(region, position, true);
 }
 
 // 즐겨찾기 관련 함수
@@ -523,7 +362,6 @@ window.searchAddress = searchAddress;
 window.updateRegionList = updateRegionList;
 window.updateStats = updateStats;
 window.filterMapCircles = filterMapCircles;
-window.restoreJeonseRatesFromStorage = restoreJeonseRatesFromStorage;
 
 // 지역명 정규화 함수 (동, 가, 리 추가/제거)
 function normalizeRegionName(region) {
@@ -552,13 +390,13 @@ function searchAddress() {
         return;
     }
     
-    // 전역 regionData 사용 (React 모듈이 설정한 경우)
+    // 초기화된 지도와 위치 목록을 사용합니다.
     const globalRegionData = window.regionData || regionData;
     const globalMap = window.map || map;
     
     // 지도 인스턴스가 없으면 에러
     if (!globalMap) {
-        console.error('지도 인스턴스가 없습니다. React 모듈이 로드되었는지 확인하세요.');
+        console.error('지도 인스턴스가 없습니다.');
         alert('지도가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
         return;
     }
@@ -600,7 +438,7 @@ function searchAddress() {
     
     // 정확한 매칭이 없으면 부분 매칭 시도
     if (!targetRegion) {
-        const matchedKey = Object.keys(globalRegionData).find(key => {
+        const matchedKeys = Object.keys(globalRegionData).filter(key => {
             const keyClean = key.replace(/동|가|리/g, '').trim();
             const searchClean = searchKeyword.replace(/동|가|리/g, '').trim();
             const normalizedClean = normalizedKeyword.replace(/동|가|리/g, '').trim();
@@ -619,8 +457,12 @@ function searchAddress() {
             return false;
         });
         
-        if (matchedKey) {
-            targetRegion = globalRegionData[matchedKey];
+        if (matchedKeys.length > 1) {
+            alert('지역을 구분할 수 있도록 자치구와 동 이름을 함께 입력해 주세요.');
+            return;
+        }
+        if (matchedKeys.length === 1) {
+            targetRegion = globalRegionData[matchedKeys[0]];
         }
     }
     
@@ -630,11 +472,8 @@ function searchAddress() {
         globalMap.setCenter(position);
         globalMap.setLevel(5);
         
-        // 검색할 지역명 결정 (정규화된 키워드 우선)
-        const regionToSearch = normalizedKeyword || searchKeyword || targetRegion.data.region;
-        
         // 실거래 데이터 로드 (자동으로 InfoWindow 표시)
-        loadRealTransactionsForMap(regionToSearch, position, true, false);
+        loadRealTransactionsForMap(targetRegion.data.region, position, true, false);
     } else {
         // 주소 검색 API 사용
         const geocoder = new kakao.maps.services.Geocoder();
@@ -766,14 +605,12 @@ function loadRealTransactionsForMap(region, coords, autoOpenInfoWindow = true, s
             console.log(`[검색] ${cleanRegion} 검색 결과: ${properties.length}건`);
             
             if (properties.length > 0) {
-                // 데이터가 있으면 분석하여 원 그리기 (정보창 자동 열기 여부 전달)
+                // 검색 위치와 개별 매물 결과를 표시합니다.
                 // 중요: 정리된 지역명을 사용하여 정보창에 올바른 지역명 표시
                 displayRealTransactionCircles(cleanRegion, properties, coords, autoOpenInfoWindow);
                 updateRealTransactionResults(cleanRegion, properties);
                 
-                // 검색 기록 저장 (위험도 점수 계산) - 정리된 지역명 사용
-                const riskScore = calculateRiskScoreFromProperties(properties);
-                saveSearchHistory(cleanRegion, riskScore);
+                saveSearchHistory(cleanRegion);
             } else {
                 // 데이터가 없으면 로딩 InfoWindow 닫기
                 if (window.realTxInfoWindow) {
@@ -810,20 +647,8 @@ function loadRealTransactionsForMap(region, coords, autoOpenInfoWindow = true, s
         });
 }
 
-// 매물 리스트에서 위험도 점수 계산
-function calculateRiskScoreFromProperties(properties) {
-    if (!properties || properties.length === 0) return null;
-    
-    // 전세가율 기반으로 위험도 점수 계산
-    const propertiesWithRate = properties.filter(p => p.jeonse_rate != null && p.jeonse_rate > 0);
-    if (propertiesWithRate.length === 0) return null;
-    
-    const avgJeonseRate = propertiesWithRate.reduce((sum, p) => sum + p.jeonse_rate, 0) / propertiesWithRate.length;
-    return Math.round(avgJeonseRate);
-}
-
-// 검색 기록 저장
-function saveSearchHistory(region, riskScore) {
+// 검색 기록은 위치만 저장합니다.
+function saveSearchHistory(region) {
     if (!region) return;
     
     fetch('/api/search-history', {
@@ -831,10 +656,7 @@ function saveSearchHistory(region, riskScore) {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            region: region,
-            risk_score: riskScore
-        })
+        body: JSON.stringify({ region })
     })
     .then(response => {
         if (!response.ok) {
@@ -857,96 +679,15 @@ function saveSearchHistory(region, riskScore) {
     });
 }
 
-// 4. [핵심] 실제 데이터를 분석하여 원 색상 및 정보창 표시 (전세가율 기반)
+// 검색 결과의 위치를 표시하고, 개별 전세가율은 결과 목록에서 확인합니다.
 function displayRealTransactionCircles(region, properties, centerCoords, autoOpenInfoWindow = true) {
-    // 전역 변수 사용 (React 모듈이 설정한 경우)
     const globalMap = window.map || map;
     const globalRegionData = window.regionData || regionData;
-    
-    // 현재 검색 중인 지역 저장 (필터 기능에서 사용)
-    // 중요: 이전 검색 결과를 덮어쓰기 위해 명시적으로 설정
-    window.currentSearchRegion = region;
-    
-    if (!globalMap) {
-        console.error('지도 인스턴스가 없습니다.');
-        return;
-    }
-    
-    // 기존 실거래 원 제거
-    if (window.realTxCircles) {
-        window.realTxCircles.forEach(circle => circle.setMap(null));
-    }
-    window.realTxCircles = [];
-    
-    // (1) 전세가율 기반 위험도 계산
-    // 전세가율이 있는 매물만 필터링 (0.5% 같은 비정상적인 값 제외)
-    // 전세가율은 일반적으로 30% 이상이므로, 10% 미만은 데이터 오류로 간주
-    const propertiesWithJeonseRate = properties.filter(p => {
-        if (p.jeonse_rate == null || p.jeonse_rate <= 0) return false;
-        // 전세가율이 10% 미만이면 데이터 오류로 간주하여 제외
-        if (p.jeonse_rate < 10) {
-            return false;
-        }
-        return true;
-    });
-    
-    if (propertiesWithJeonseRate.length === 0) {
-        // 전세가율 데이터가 없으면 표시하지 않음
-        return;
-    }
-    
-    // 평균 전세가율 계산
-    const avgJeonseRate = propertiesWithJeonseRate.reduce((sum, p) => sum + p.jeonse_rate, 0) / propertiesWithJeonseRate.length;
-    
-    // (2) 전세가율에 따른 색상 결정 (공통 함수 사용)
-    const riskLevel = calculateRiskLevel(avgJeonseRate);
-    const color = riskLevel.color;
-    let statusText = riskLevel.text;
-    // 정보창에서는 더 자세한 설명 추가
-    if (avgJeonseRate >= 80) {
-        statusText = '위험 (전세가율 높음)';
-    } else if (avgJeonseRate >= 60) {
-        statusText = '주의 (전세가율 보통)';
-    } else {
-        statusText = '안전 (전세가율 낮음)';
-    }
-    
-    // 전역 변수에 저장하여 다른 부분에서도 사용 가능하도록
-    // regionData가 없으면 생성
-    if (!window.regionData) {
-        window.regionData = {};
-    }
-    if (!window.regionData[region]) {
-        window.regionData[region] = {};
-    }
-    
-    window.regionData[region].calculatedScore = avgJeonseRate;
-    window.regionData[region].riskLevel = riskLevel;
-    
-    // localStorage에 전세가율 저장 (새로고침 후에도 유지)
-    try {
-        const storedRates = JSON.parse(localStorage.getItem('regionJeonseRates') || '{}');
-        storedRates[region] = {
-            score: avgJeonseRate,
-            category: riskLevel.category,
-            text: riskLevel.text,
-            color: riskLevel.color,
-            timestamp: Date.now()
-        };
-        localStorage.setItem('regionJeonseRates', JSON.stringify(storedRates));
-    } catch (e) {
-        console.warn('[전세가율 저장] localStorage 저장 실패:', e);
-    }
-    
-    // 왼쪽 사이드바와 오른쪽 사이드바 업데이트 (정보창의 값 반영)
-    if (typeof updateRegionList === 'function') {
-        updateRegionList();
-    }
-    if (typeof loadRecentSearches === 'function') {
-        setTimeout(() => loadRecentSearches(), 100);
-    }
+    if (!globalMap) return;
 
-    // (3) 지도 위에 원 그리기
+    for (const circle of window.realTxCircles || []) circle.setMap(null);
+    window.realTxCircles = [];
+    const { color, text: statusText } = unknownMapIndicator;
     const circle = new kakao.maps.Circle({
         center: centerCoords,
         radius: 350, // 동 넓이에 맞게 조정 (검색 결과는 조금 더 작고 진하게 표시)
@@ -955,7 +696,7 @@ function displayRealTransactionCircles(region, properties, centerCoords, autoOpe
         strokeWeight: 2,
         strokeColor: '#fff'
     });
-    circle.setMap(globalMap);
+    circle.setMap(currentFilter === 'all' || currentFilter === 'unknown' ? globalMap : null);
     
     // 전역 변수에 저장 (나중에 지우기 위해)
     if (!window.realTxCircles) window.realTxCircles = [];
@@ -981,9 +722,8 @@ function displayRealTransactionCircles(region, properties, centerCoords, autoOpe
                 <span style="font-weight:bold; color:${color}">● ${statusText}</span>
             </div>
             <div style="color:#666; margin-bottom:10px;">
-                평균 전세가율: <strong>${avgJeonseRate.toFixed(1)}%</strong><br>
-                분석 매물 수: ${propertiesWithJeonseRate.length}건<br>
-                전체 매물 수: ${properties.length}건
+                조회 매물 수: ${properties.length}건<br>
+                개별 참고 전세가율은 실거래가 조회 목록에서 확인하세요.
             </div>
             <div style="display:flex; gap:6px;">
             <a href="${scannerBaseUrl}?region=${encodeURIComponent(region)}" 
@@ -1067,9 +807,6 @@ function clearRealTransactionCircles() {
         window.realTxInfoWindow = null;
     }
     
-    // 현재 검색 지역 초기화
-    window.currentSearchRegion = null;
-    
     // 실거래가 조회 결과 영역 초기화 (이전 검색 결과 제거)
     const resultsDiv = document.getElementById('real-tx-results');
     if (resultsDiv) {
@@ -1081,195 +818,51 @@ function clearRealTransactionCircles() {
 // UI 업데이트 함수
 // ============================================
 
-// 지도의 원 필터링 (정보창의 계산된 위험도 고려)
 function filterMapCircles() {
-    const globalRegionData = window.regionData || regionData;
-    const globalMap = window.map || map;
-    Object.values(globalRegionData).forEach(data => {
-        // 정보창에서 계산한 위험도가 있으면 그것을 사용, 없으면 기본 category 사용
-        let displayCategory = data.category;
-        if (data.calculatedScore !== undefined && data.riskLevel) {
-            displayCategory = data.riskLevel.category;
-        }
-        
-        if (currentFilter === 'all' || displayCategory === currentFilter) {
-            data.circle.setMap(globalMap);
-        } else {
-            data.circle.setMap(null);
-            if (data.infowindow) {
-                data.infowindow.close();
-            }
-        }
-    });
-    
-    // 실거래 원도 필터링 (검색 결과 원)
-    if (window.realTxCircles && window.realTxCircles.length > 0) {
-        const globalRegionData = window.regionData || regionData;
-        // 현재 검색 중인 지역의 위험도 확인
-        const searchRegion = window.currentSearchRegion;
-        if (searchRegion && globalRegionData[searchRegion]) {
-            const regionData = globalRegionData[searchRegion];
-            let displayCategory = regionData.category;
-            if (regionData.calculatedScore !== undefined && regionData.riskLevel) {
-                displayCategory = regionData.riskLevel.category;
-            }
-            
-            window.realTxCircles.forEach(circle => {
-                if (currentFilter === 'all' || displayCategory === currentFilter) {
-                    circle.setMap(globalMap);
-                } else {
-                    circle.setMap(null);
-                }
-            });
-        }
+    for (const { circle, category } of Object.values(regionData)) {
+        circle.setMap(currentFilter === 'all' || category === currentFilter ? map : null);
+    }
+    for (const circle of window.realTxCircles || []) {
+        circle.setMap(currentFilter === 'all' || currentFilter === 'unknown' ? map : null);
     }
 }
 
-// 지역 목록 업데이트
 function updateRegionList() {
-    const listContainer = document.getElementById('region-list');
-    if (!listContainer) return;
-    
-    listContainer.innerHTML = '';
-    
-    // 전역 regions 사용 (React 모듈이 설정한 경우)
-    const globalRegions = window.regions || regions;
-    const globalRegionData = window.regionData || regionData;
-    const globalMap = window.map || map;
-    
-    // 필터링: 정보창에서 계산한 위험도를 고려
-    let filtered = currentFilter === 'all' 
-        ? globalRegions 
-        : globalRegions.filter(r => {
-            const regionData = globalRegionData[r.region];
-            // 정보창에서 계산한 위험도가 있으면 그것을 사용, 없으면 기본 category 사용
-            let displayCategory = r.category;
-            if (regionData && regionData.calculatedScore !== undefined && regionData.riskLevel) {
-                displayCategory = regionData.riskLevel.category;
-            }
-            return displayCategory === currentFilter;
-        });
-    
-    // 정렬: 정보창에서 계산한 점수를 우선 사용
-    filtered.sort((a, b) => {
-        const aData = globalRegionData[a.region];
-        const bData = globalRegionData[b.region];
-        const aScore = (aData && aData.calculatedScore !== undefined) ? aData.calculatedScore : a.score;
-        const bScore = (bData && bData.calculatedScore !== undefined) ? bData.calculatedScore : b.score;
-        return bScore - aScore;
-    });
-    
-    filtered.forEach(region => {
-        const item = document.createElement('div');
-        
-        // 정보창에서 계산한 값이 있으면 우선 사용, 없으면 히트맵 데이터 사용
-        // localStorage에서도 확인 (새로고침 후 복원된 데이터)
-        let regionData = globalRegionData[region.region];
-        let displayScore = (regionData && regionData.calculatedScore !== undefined) 
-            ? regionData.calculatedScore 
-            : region.score;
-        
-        // localStorage에서도 확인 (regionData에 없거나 0인 경우)
-        if (!regionData || !regionData.calculatedScore || displayScore === region.score || displayScore === 0) {
-            try {
-                const storedRates = JSON.parse(localStorage.getItem('regionJeonseRates') || '{}');
-                if (storedRates[region.region]) {
-                    displayScore = storedRates[region.region].score;
-                    // regionData가 없으면 생성
-                    if (!regionData) {
-                        regionData = {};
-                        globalRegionData[region.region] = regionData;
-                    }
-                    // regionData에도 복원
-                    regionData.calculatedScore = displayScore;
-                    regionData.riskLevel = {
-                        category: storedRates[region.region].category,
-                        text: storedRates[region.region].text,
-                        color: storedRates[region.region].color
-                    };
-                }
-            } catch (e) {
-                // localStorage 읽기 실패 시 무시
-                console.warn(`[전세가율 복원] ${region.region} 복원 실패:`, e);
-            }
-        }
-        
-        // 상태 텍스트 및 색상 (공통 함수 사용)
-        const riskLevel = calculateRiskLevel(displayScore);
-        const statusText = riskLevel.text;
-        const statusColor = riskLevel.color;
-        const displayCategory = riskLevel.category;
-        
-        item.className = `region-item ${displayCategory}`;
-        
-        item.innerHTML = `
-            <div class="region-header">
-            <div class="region-name">${region.region}</div>
-                <div class="region-status" style="color: ${statusColor}; font-weight: 600; font-size: 12px;">${statusText}</div>
-            </div>
-            <div class="region-details">
-                <div class="region-score">
-                    <span class="score-label">전세가율:</span>
-                    <span class="score-value" style="color: ${statusColor}; font-weight: 600;">${typeof displayScore === 'number' ? displayScore.toFixed(1) : displayScore}%</span>
-                </div>
-                <div class="region-info">
-                    <span class="info-text">${displayScore >= 80 ? '전세가율이 높아 위험합니다' : displayScore >= 60 ? '전세가율이 보통입니다' : '전세가율이 낮아 안전합니다'}</span>
-                </div>
-            </div>
-        `;
-        item.onclick = () => {
-            const targetRegion = globalRegionData[region.region];
-            if (targetRegion) {
-                // 기존 검색 결과 제거 (이전 검색 결과가 남아있지 않도록)
-                clearRealTransactionCircles();
-                
-                // 모든 정보창 닫기
-                Object.values(globalRegionData).forEach(d => {
-                    if (d.infowindow) d.infowindow.close();
-                });
-                
-                // 해당 지역으로 이동
-                const position = targetRegion.circle.getPosition();
-                globalMap.setCenter(position);
-                globalMap.setLevel(5);
-                
-                // 검색 입력창에 지역명 설정
-                const searchInput = document.getElementById('address-search');
-                if (searchInput) {
-                    searchInput.value = region.region;
-                }
-                
-                // 검색 결과 InfoWindow 자동 표시 (명시적으로 지역명 전달)
-                const regionToSearch = region.region;
-                loadRealTransactionsForMap(regionToSearch, position, true);
-            }
-        };
-        listContainer.appendChild(item);
-    });
+    const list = document.getElementById('region-list');
+    if (!list) return;
+    list.replaceChildren();
+    const filtered = regions.filter(region => currentFilter === 'all' || region.indicator.category === currentFilter);
 
-    const totalRegionsElement = document.getElementById('total-regions');
-    if (totalRegionsElement) {
-        totalRegionsElement.textContent = filtered.length;
+    for (const region of filtered) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'region-item ' + region.indicator.category;
+
+        const name = document.createElement('span');
+        name.className = 'region-name';
+        name.textContent = region.region;
+        const label = document.createElement('span');
+        label.className = 'region-status';
+        label.style.color = region.indicator.color;
+        label.textContent = region.indicator.category === 'unknown'
+            ? region.indicator.text : region.score.toFixed(1) + '% · ' + region.indicator.text;
+        item.append(name, label);
+        item.onclick = () => selectMapRegion(region.region, regionData[region.region].circle.getPosition());
+        list.append(item);
     }
+
+    if (!filtered.length) list.textContent = '이 분류에 해당하는 지역이 없습니다.';
 }
 
-// 통계 업데이트
 function updateStats() {
-    // 전역 regions 사용 (React 모듈이 설정한 경우)
-    const globalRegions = window.regions || regions;
-    const danger = globalRegions.filter(r => r.score >= 80).length;
-    const warning = globalRegions.filter(r => r.score >= 60 && r.score < 80).length;
-    const safe = globalRegions.filter(r => r.score < 60).length;
-    
-    const dangerEl = document.getElementById('danger-count');
-    const warningEl = document.getElementById('warning-count');
-    const safeEl = document.getElementById('safe-count');
-    const totalEl = document.getElementById('total-regions');
-    
-    if (dangerEl) dangerEl.textContent = danger;
-    if (warningEl) warningEl.textContent = warning;
-    if (safeEl) safeEl.textContent = safe;
-    if (totalEl) totalEl.textContent = regions.length;
+    const counts = { danger: 0, warning: 0, safe: 0, unknown: 0 };
+    for (const region of regions) counts[region.indicator.category]++;
+    for (const [category, count] of Object.entries(counts)) {
+        const element = document.getElementById(category + '-count');
+        if (element) element.textContent = count;
+    }
+    const total = document.getElementById('total-regions');
+    if (total) total.textContent = regions.length;
 }
 
 // 사이드바 실거래 결과 업데이트
@@ -1299,7 +892,7 @@ function updateRealTransactionResults(region, properties) {
             </div>
             ` : ''}
             <div style="margin-top: 4px;">
-                전세가율: <span style="color: ${jeonseRateColor}; font-weight: 600;">${jeonseRateText}</span>
+                참고 전세가율: <span style="color: ${jeonseRateColor}; font-weight: 600;">${jeonseRateText}</span>
             </div>
         </div>
     `;
@@ -1418,30 +1011,6 @@ function loadRecentSearches() {
             container.innerHTML = limitedData.map(item => {
                 const timeAgo = getTimeAgo(new Date(item.search_date));
                 
-                // 정보창에서 계산한 값이 있으면 우선 사용, 없으면 검색 기록의 risk_score 사용
-                // localStorage에서도 확인 (새로고침 후 복원된 데이터)
-                const regionData = window.regionData && window.regionData[item.region];
-                let displayScore = (regionData && regionData.calculatedScore !== undefined)
-                    ? regionData.calculatedScore
-                    : item.risk_score;
-                
-                // localStorage에서도 확인 (regionData에 없을 경우)
-                if (!displayScore || displayScore === 0) {
-                    try {
-                        const storedRates = JSON.parse(localStorage.getItem('regionJeonseRates') || '{}');
-                        if (storedRates[item.region]) {
-                            displayScore = storedRates[item.region].score;
-                        }
-                    } catch (e) {
-                        // localStorage 읽기 실패 시 무시
-                    }
-                }
-                
-                // 공통 위험도 계산 함수 사용
-                const riskLevel = calculateRiskLevel(displayScore);
-                const badgeClass = riskLevel.category;
-                const badgeText = riskLevel.text;
-                
                 return `
                     <div class="recent-search-item">
                         <div class="search-info" onclick="searchFromHistory('${item.region}')" style="flex: 1; cursor: pointer;">
@@ -1449,7 +1018,6 @@ function loadRecentSearches() {
                             <div class="search-time">${timeAgo}</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="search-badge ${badgeClass}">${badgeText}</span>
                             <button class="remove-btn" onclick="event.stopPropagation(); deleteSearchHistory(${item.id})" title="삭제" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 18px; padding: 4px 8px; line-height: 1;">×</button>
                         </div>
                     </div>

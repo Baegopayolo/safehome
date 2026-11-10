@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from datetime import datetime, timezone, timedelta
 from utils import (
     TransactionSourceError, _resolve_lawd_cd, load_transaction_snapshot,
-    filter_transactions_by_region, get_heatmap_data, _save_heatmap_to_db,
+    filter_transactions_by_region, get_heatmap_data,
     fetch_properties_by_region, analyze_property_warnings, generate_safety_checklist,
 )
 from models import SearchHistory, Favorite, Review, Report, Notification, RealTransaction, HeatmapData
@@ -98,45 +98,21 @@ def generate_real_notifications(db, HeatmapData, RealTransaction):
 
 def register_api_routes(app, db):
     from models import RealTransaction, HeatmapData
-    @app.route('/heatmap')
+    @app.get('/heatmap')
     def heatmap():
-        data = get_heatmap_data(db, HeatmapData, RealTransaction, force_update=False)
-        return jsonify(data)
-    @app.route('/api/heatmap/refresh', methods=['POST'])
+        response = jsonify(get_heatmap_data())
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.post('/api/heatmap/refresh')
+    @app.post('/api/heatmap/update')
     def refresh_heatmap():
-        try:
-            data = get_heatmap_data(db, HeatmapData, RealTransaction, force_update=True)
-            return jsonify({'success': True, 'data': data, 'message': f'{len(data)}개 지역 데이터가 최신 전세가율로 업데이트되었습니다.'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    @app.route('/api/heatmap/update', methods=['POST'])
-    def update_heatmap():
-        try:
-            data = request.get_json()
-            if not data or not isinstance(data, list):
-                return jsonify({'error': 'Invalid data format'}), 400
-            updated_data = []
-            for region_info in data:
-                region = region_info.get('region')
-                if not region:
-                    continue
-                properties = fetch_properties_by_region(region, db, RealTransaction)
-                properties_with_rate = [p for p in properties if p.get('jeonse_rate') is not None and p.get('jeonse_rate') > 0]
-                if properties_with_rate:
-                    avg_rate = sum(p['jeonse_rate'] for p in properties_with_rate) / len(properties_with_rate)
-                    score = round(avg_rate)
-                else:
-                    continue
-                updated_data.append({
-                    'region': region,
-                    'score': score,
-                    'lat': region_info.get('lat', 0),
-                    'lng': region_info.get('lng', 0)
-                })
-            _save_heatmap_to_db(db, HeatmapData, updated_data)
-            return jsonify({'success': True, 'message': f'{len(updated_data)}개 지역 데이터가 전세가율 기반으로 업데이트되었습니다.'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        if not current_user.is_authenticated:
+            return jsonify(error='로그인이 필요합니다.'), 401
+        if not current_user.is_admin:
+            return jsonify(error='관리자만 사용할 수 있습니다.'), 403
+        return jsonify(error='검증된 지역 집계가 준비되기 전까지 지도 점수 갱신을 중지했습니다.'), 409
+
     def property_payload(prop):
         fields = ('name', 'price', 'price_raw', 'address', 'area', 'floor', 'build_year',
                   'deal_date', 'jeonse_rate', 'risk_level', 'risk_score',
@@ -222,22 +198,13 @@ def register_api_routes(app, db):
     def search_history():
         if request.method == 'POST':
             if current_user.is_authenticated:
-                data = request.get_json()
-                region_raw = data['region']
-                region_dong = _extract_dong(region_raw)
-                jeonse_rate = None
-                try:
-                    heatmap_data = HeatmapData.query.filter_by(region=region_dong).first()
-                    if heatmap_data:
-                        jeonse_rate = float(heatmap_data.score)
-                    else:
-                        from utils import _calculate_jeonse_rate_score
-                        properties = fetch_properties_by_region(region_dong, db, RealTransaction)
-                        if properties:
-                            jeonse_rate = _calculate_jeonse_rate_score(properties)
-                except Exception as e:
-                    print(f"[검색 히스토리] 전세가율 계산 실패: {str(e)}")
-                history = SearchHistory(user_id=current_user.id, region=region_dong, risk_score=int(round(jeonse_rate)) if jeonse_rate is not None else None)
+                data = request.get_json(silent=True)
+                region = data.get('region') if isinstance(data, dict) else None
+                if not isinstance(region, str) or not re.fullmatch(r'[가-힣A-Za-z0-9 .,/()\-]{1,100}', region.strip()):
+                    return jsonify(error='지역명을 확인하세요.'), 400
+                # Keep the search term, including the district. A legacy map score
+                # is not evidence about a search or the safety of its contracts.
+                history = SearchHistory(user_id=current_user.id, region=region.strip())
                 db.session.add(history)
                 db.session.commit()
             return jsonify({'status': 'success'})
@@ -250,22 +217,12 @@ def register_api_routes(app, db):
                     if h.region in seen_regions:
                         continue
                     seen_regions.add(h.region)
-                    jeonse_rate = None
-                    try:
-                        heatmap_data = HeatmapData.query.filter_by(region=h.region).first()
-                        if heatmap_data:
-                            jeonse_rate = float(heatmap_data.score)
-                        elif h.risk_score is not None:
-                            jeonse_rate = float(h.risk_score)
-                    except Exception:
-                        if h.risk_score is not None:
-                            jeonse_rate = float(h.risk_score)
                     result.append({
                         'id': h.id,
                         'region': h.region,
                         'search_date': format_kst_datetime(h.search_date, '%Y-%m-%d %H:%M:%S'),
-                        'risk_score': round(jeonse_rate, 1) if jeonse_rate is not None else None,
-                        'jeonse_rate': round(jeonse_rate, 1) if jeonse_rate is not None else None
+                        'risk_score': None,
+                        'jeonse_rate': None
                     })
                 return jsonify(result)
             return jsonify([])

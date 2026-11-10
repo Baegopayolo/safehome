@@ -286,52 +286,14 @@ def load_transaction_snapshot(kind, lawd_cd, deal_ymd):
     return transactions
 
 
-def _load_heatmap_from_db(HeatmapData):
-    """DB에서 히트맵 데이터 불러오기 (score는 정수로 저장되어 있지만, Float로 반환하여 일관성 유지)"""
-    try:
-        heatmap_records = HeatmapData.query.all()
-        # DB에 저장된 정수 값을 Float로 변환 (소수점 표시를 위해)
-        return [{'region': h.region, 'score': float(h.score), 'lat': h.lat, 'lng': h.lng} for h in heatmap_records] if heatmap_records else None
-    except Exception:
-        return None
-
-def _save_heatmap_to_db(db, HeatmapData, heatmap_data):
-    """히트맵 데이터를 DB에 저장 (score는 정수로 저장, Float 타입이면 소수점 첫째 자리까지)"""
-    try:
-        for data in heatmap_data:
-            existing = HeatmapData.query.filter_by(region=data['region']).first()
-            # score를 정수로 변환 (DB는 Integer 타입이므로)
-            score_value = int(round(data['score'])) if isinstance(data['score'], float) else data['score']
-            if existing:
-                existing.score, existing.lat, existing.lng = score_value, data['lat'], data['lng']
-                # 한국 시간 (UTC+9)
-                kst = timezone(timedelta(hours=9))
-                existing.updated_at = datetime.now(kst)
-            else:
-                db.session.add(HeatmapData(region=data['region'], score=score_value, lat=data['lat'], lng=data['lng']))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-def _calculate_jeonse_rate_score(properties):
-    """매물 리스트에서 평균 전세가율을 계산하여 점수로 변환"""
-    if not properties:
-        return 0.0
-    properties_with_rate = [p for p in properties if p.get('jeonse_rate') is not None and p.get('jeonse_rate') > 0]
-    if not properties_with_rate:
-        return 0.0
-    avg_rate = sum(p['jeonse_rate'] for p in properties_with_rate) / len(properties_with_rate)
-    # 전세가율을 소수점 첫째 자리까지 반올림 (일관성 유지)
-    return round(avg_rate, 1)
-
-def get_heatmap_data(db=None, HeatmapData=None, RealTransaction=None, force_update=False):
-    """히트맵 데이터를 반환하는 함수 (전세가율 기반, 자동 계산)"""
-    # 기본 지역 목록 (50개 동)
+def get_heatmap_data():
+    """Return map locations without scores that lack verified sample provenance."""
+    # The fixed coordinates represent locations, rather than measured areas.
     default_regions = [
         # 강남구
         {'region': '청담동', 'lat': 37.5196, 'lng': 127.0473},
         {'region': '역삼동', 'lat': 37.5000, 'lng': 127.0364},
-        {'region': '삼성동', 'lat': 37.5146, 'lng': 127.0491},
+        {'region': '강남구 삼성동', 'lat': 37.5146, 'lng': 127.0491},
         {'region': '대치동', 'lat': 37.4932, 'lng': 127.0576},
         {'region': '압구정동', 'lat': 37.5275, 'lng': 127.0286},
         {'region': '논현동', 'lat': 37.5111, 'lng': 127.0216},
@@ -363,7 +325,7 @@ def get_heatmap_data(db=None, HeatmapData=None, RealTransaction=None, force_upda
         {'region': '신림동', 'lat': 37.4842, 'lng': 126.9294},
         {'region': '봉천동', 'lat': 37.4833, 'lng': 126.9500},
         {'region': '서원동', 'lat': 37.4767, 'lng': 126.9333},
-        {'region': '삼성동', 'lat': 37.4700, 'lng': 126.9300},
+        {'region': '관악구 삼성동', 'lat': 37.4700, 'lng': 126.9300},
         # 강동구
         {'region': '명일동', 'lat': 37.5500, 'lng': 127.1436},
         {'region': '천호동', 'lat': 37.5383, 'lng': 127.1233},
@@ -394,50 +356,8 @@ def get_heatmap_data(db=None, HeatmapData=None, RealTransaction=None, force_upda
         {'region': '하계동', 'lat': 37.6367, 'lng': 127.0700},
     ]
     
-    # DB에서 기존 데이터 로드
-    db_data_dict = {}
-    if not force_update and db and HeatmapData:
-        db_data = _load_heatmap_from_db(HeatmapData)
-        if db_data and len(db_data) > 0:
-            # DB 데이터를 딕셔너리로 변환 (빠른 조회를 위해)
-            db_data_dict = {d['region']: d for d in db_data}
-            print(f"[히트맵] DB에서 {len(db_data_dict)}개 지역 데이터 로드")
-    
-    # 전세가율 기반으로 자동 계산 (DB에 없는 지역만)
-    # 중요: 히트맵 데이터 생성 시에는 /analyze API를 호출하지 않음
-    # 히트맵 데이터는 DB에 저장된 데이터만 사용하거나 기본값(0) 사용
-    heatmap_data = []
-    for region_info in default_regions:
-        region = region_info['region']
-        
-        # DB에 데이터가 있으면 사용
-        if region in db_data_dict:
-            heatmap_data.append(db_data_dict[region])
-            continue
-        
-        # DB에 없으면 기본 점수 0으로 설정 (API 호출하지 않음)
-        # 히트맵 데이터는 사용자가 검색할 때만 /analyze API를 호출하도록 변경
-        heatmap_data.append({
-            'region': region,
-            'score': 0,
-            'lat': region_info['lat'],
-            'lng': region_info['lng']
-        })
-    
-    # 계산된 데이터를 DB에 저장
-    if db and HeatmapData and heatmap_data:
-        try:
-            _save_heatmap_to_db(db, HeatmapData, heatmap_data)
-            print(f"[히트맵] {len(heatmap_data)}개 지역 데이터 계산 완료 및 DB 저장")
-        except Exception as e:
-            print(f"[히트맵] DB 저장 중 에러: {str(e)}")
-    
-    # 데이터가 비어있어도 최소한 기본 지역 목록은 반환 (점수 0으로라도)
-    if not heatmap_data:
-        print("[히트맵] 경고: 계산된 데이터가 없습니다. 기본 지역 목록을 점수 0으로 반환합니다.")
-        heatmap_data = [{'region': r['region'], 'score': 0, 'lat': r['lat'], 'lng': r['lng']} for r in default_regions]
-    
-    return heatmap_data
+    return [dict(region, score=None, status='unavailable') for region in default_regions]
+
 
 def filter_transactions_by_region(transactions, region):
     match = re.search(r'[가-힣0-9]+[동가리](?=[\s,]|$)', region or '')

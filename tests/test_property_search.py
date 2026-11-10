@@ -127,3 +127,62 @@ class PropertyTests(unittest.TestCase):
         self.assertIn('/login/kakao', client.get('/login').get_data(as_text=True))
         self.assertEqual(client.get('/privacy').status_code, 200)
         self.assertEqual(client.get('/api/admin/reports').status_code, 302)
+
+    def test_map_reads_ignore_legacy_scores_without_writing(self):
+        from app import db, HeatmapData
+        with self.app.app_context():
+            db.create_all()
+            db.session.add(HeatmapData(region='역삼동', score=91, lat=0, lng=0))
+            db.session.commit()
+            try:
+                client = self.app.test_client()
+                for _ in range(2):
+                    response = client.get('/heatmap')
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.headers['Cache-Control'], 'no-store')
+                    by_region = {row['region']: row for row in response.json}
+                    self.assertEqual(len(by_region), len(response.json))
+                    self.assertEqual(by_region['역삼동']['status'], 'unavailable')
+                    self.assertIsNone(by_region['역삼동']['score'])
+                    self.assertNotEqual(by_region['역삼동']['lat'], 0)
+                    self.assertIn('강남구 삼성동', by_region)
+                    self.assertIn('관악구 삼성동', by_region)
+                    self.assertTrue(all(row['score'] is None for row in response.json))
+                db.session.expire_all()
+                saved = HeatmapData.query.one()
+                self.assertEqual((saved.score, saved.lat, saved.lng), (91, 0, 0))
+            finally:
+                db.drop_all()
+
+    def test_legacy_map_writes_are_blocked_for_every_role(self):
+        from app import db, HeatmapData, User
+        with self.app.app_context():
+            db.create_all()
+            db.session.add_all([
+                HeatmapData(region='역삼동', score=91, lat=37.5, lng=127.0),
+                User(username='map-user', password='test', is_admin=False),
+                User(username='map-admin', password='test', is_admin=True),
+            ])
+            db.session.commit()
+            roles = [(None, 401)] + [(user.id, 409 if user.is_admin else 403)
+                                     for user in User.query.all()]
+        try:
+            for user_id, expected in roles:
+                client = self.app.test_client()
+                if user_id is not None:
+                    with client.session_transaction() as session:
+                        session['_user_id'] = str(user_id)
+                for action in ('refresh', 'update'):
+                    response = client.post('/api/heatmap/' + action, json=[{'region': '역삼동'}])
+                    self.assertEqual(response.status_code, expected)
+                if expected == 403:
+                    response = client.post('/api/search-history', json={'region': '관악구 삼성동', 'risk_score': 91})
+                    self.assertEqual(response.status_code, 200)
+                    history = client.get('/api/search-history').json[0]
+                    self.assertEqual(history['region'], '관악구 삼성동')
+                    self.assertIsNone(history['risk_score'])
+            with self.app.app_context():
+                self.assertEqual(HeatmapData.query.one().score, 91)
+        finally:
+            with self.app.app_context():
+                db.drop_all()

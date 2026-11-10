@@ -12,18 +12,7 @@ npm install
 npm run build
 ```
 
-## 사용법
-
-빌드 후 `frontend/map.html`에서 다음과 같이 사용:
-
-```html
-<script src="{{ url_for('static', filename='js/map-react.js') }}"></script>
-<script>
-  // 지도 컨테이너가 준비되면 자동으로 초기화됩니다
-  // 또는 수동으로 초기화하려면:
-  // window.initMapModule('map');
-</script>
-```
+이 모듈은 이전 실험용입니다. 운영 지도 `frontend/map.html`은 검증 상태를 처리하는 `static/js/map.js`를 사용합니다.
 
 ## 구조
 

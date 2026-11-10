@@ -2,9 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>세이프홈 - 안전 히트맵</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>세이프홈 - 지역별 참고 전세가율</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-1') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
@@ -12,30 +13,35 @@
     <div id="main-container">
         <div id="side-panel" class="hidden">
         <div class="panel-header">
-                <h2 style="margin:0 0 8px;font-size:18px">지역별 위험도</h2>
+                <h2 style="margin:0 0 8px;font-size:18px">지역별 참고 전세가율</h2>
                 <p style="margin:0;font-size:13px;color:#666">총 <span id="total-regions">0</span>개 지역</p>
         </div>
         <div class="stats-container">
             <div class="stat-card danger">
                 <div class="stat-number" id="danger-count">0</div>
-                <div class="stat-label">위험</div>
+                <div class="stat-label">높음</div>
             </div>
             <div class="stat-card warning">
                 <div class="stat-number" id="warning-count">0</div>
-                <div class="stat-label">주의</div>
+                <div class="stat-label">중간</div>
             </div>
             <div class="stat-card safe">
                 <div class="stat-number" id="safe-count">0</div>
-                <div class="stat-label">안전</div>
+                <div class="stat-label">낮음</div>
+            </div>
+            <div class="stat-card unknown">
+                <div class="stat-number" id="unknown-count">0</div>
+                <div class="stat-label">판단 불가</div>
             </div>
         </div>
         <div class="filter-section">
             <h3>필터</h3>
             <div class="filter-buttons">
                 <button class="filter-btn active" data-filter="all">전체</button>
-                <button class="filter-btn" data-filter="danger">위험</button>
-                <button class="filter-btn" data-filter="warning">주의</button>
-                <button class="filter-btn" data-filter="safe">안전</button>
+                <button class="filter-btn" data-filter="danger">높음</button>
+                <button class="filter-btn" data-filter="warning">중간</button>
+                <button class="filter-btn" data-filter="safe">낮음</button>
+                <button class="filter-btn" data-filter="unknown">판단 불가</button>
             </div>
         </div>
         <div class="region-list" id="region-list"></div>
@@ -96,19 +102,24 @@
             </a>
         </div>
         <div class="sidebar-section">
-            <h3>🎨 위험도 범례</h3>
+            <h3>참고 전세가율 범례</h3>
             <div class="legend-item">
                     <div class="legend-color" style="background:#dc3545"></div>
-                <span class="legend-label">위험 (80점 이상)</span>
+                <span class="legend-label">높음 (80% 이상)</span>
             </div>
             <div class="legend-item">
-                    <div class="legend-color" style="background:#ffc107"></div>
-                <span class="legend-label">주의 (60-79점)</span>
+                    <div class="legend-color" style="background:#a16207"></div>
+                <span class="legend-label">중간 (60% 이상 80% 미만)</span>
             </div>
             <div class="legend-item">
-                    <div class="legend-color" style="background:#28a745"></div>
-                <span class="legend-label">안전 (60점 미만)</span>
+                    <div class="legend-color" style="background:#166534"></div>
+                <span class="legend-label">낮음 (60% 미만)</span>
             </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background:#6b7280"></div>
+                <span class="legend-label">판단 불가 (검증된 지역 집계 없음)</span>
+            </div>
+            <p class="legend-label">원은 지역의 위치를 나타냅니다. 전세가율만으로 계약의 안전을 판단할 수 없습니다.</p>
         </div>
     </div>
     <div id="search-container">
@@ -118,14 +129,12 @@
             <button id="clear-btn" style="margin-left:6px;background:#222222">&#10006;</button>
     </div>
     <div id="map"></div>
-    <div class="map-title">지도 위에 지역별 전세사기 위험도가 표시됩니다.</div>
+    <div class="map-title" role="status">회색 원은 검증된 지역 전세가율이 없는 위치입니다. 개별 매물은 검색해서 확인하세요.</div>
     </div>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='p1-comparables') }}"></script>
-    <!-- React 지도 모듈 (마이크로 프론트엔드) - 빌드 후 활성화 -->
-    <script src="{{ url_for('static', filename='js/map-react.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-1') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

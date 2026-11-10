@@ -257,8 +257,8 @@ python reset/reset_data.py
 
 ### 매물 분석
 - `GET /api/analyze?region=지역명` - 매물 분석 (전세가율 포함)
-- `GET /heatmap` - 히트맵 데이터 조회
-- `POST /api/heatmap/refresh` - 히트맵 데이터 새로고침
+- `GET /heatmap` - 지도 위치와 검증 상태 조회. 검증된 지역 집계가 없는 위치는 `score: null`, `status: unavailable`로 반환합니다.
+- `POST /api/heatmap/refresh`, `POST /api/heatmap/update` - 관리자 확인 후 갱신 보류 응답을 반환합니다. 검증된 지역 집계가 준비되기 전에는 저장하지 않습니다.
 - `GET /api/properties?region=지역명` - 지역별 매물 조회
 - `GET /api/real-transactions?region=지역명&deal_ymd=YYYYMM` - 실거래 데이터 조회
 
