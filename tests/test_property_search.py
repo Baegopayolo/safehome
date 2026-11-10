@@ -174,7 +174,8 @@ class PropertyTests(unittest.TestCase):
                 return []
             other = dict(common, 법정동='역삼동')
             if kind == 'sale':
-                return sales + [sales[0], dict(other, 거래금액=100000)]
+                unmatched = [dict(other, 전용면적='105', 거래금액=price) for price in range(90000, 90042)]
+                return sales + [sales[0], dict(other, 거래금액=100000)] + unmatched
             return rents + [dict(rent, 법정동='역삼동') for rent in rents]
 
         with self.app.app_context(), TemporaryDirectory() as state, patch.dict(
@@ -194,11 +195,14 @@ class PropertyTests(unittest.TestCase):
                 gangnam = before['강남구 삼성동']
                 self.assertEqual((gangnam['region_code'], gangnam['sale_sample_count'], gangnam['score']),
                                  ('11680', 5, 60))
+                self.assertEqual(gangnam['sale_transaction_count'], 5)
                 self.assertEqual(gangnam['period'], {'from': '2026-08-01', 'to': '2026-10-31'})
                 self.assertEqual((before['관악구 삼성동']['region_code'], before['관악구 삼성동']['reason']),
                                  ('11620', 'unmapped'))
                 self.assertEqual((before['역삼동']['sale_sample_count'], before['역삼동']['reason']),
                                  (1, 'insufficient'))
+                self.assertEqual(before['역삼동']['sale_transaction_count'], 43)
+                self.assertEqual(before['역삼동']['minimum_sale_sample_count'], 5)
                 self.assertIsNone(before['역삼동']['score'])
 
                 source.side_effect = utils.TransactionSourceError('UPSTREAM_REJECTED')

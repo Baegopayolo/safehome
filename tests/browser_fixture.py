@@ -34,7 +34,10 @@ with app.app_context():
     _, start, end = comparison_period(today)
     Snapshot = app.extensions['map_snapshot']
     db.session.add(Snapshot(region_code='11680', period_start=start, period_end=end,
-                           collected_at=utcnow(), indicators={'삼성동': {'score': 72.5, 'sale_sample_count': 8}}))
+        collected_at=utcnow(), indicators={
+            '삼성동': {'score': 72.5, 'sale_sample_count': 8, 'sale_transaction_count': 25},
+            '역삼동': {'score': None, 'sale_sample_count': 2, 'sale_transaction_count': 43},
+        }))
     db.session.commit()
 
 with make_server('127.0.0.1', 0, app) as server:

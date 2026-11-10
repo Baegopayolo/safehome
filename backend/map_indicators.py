@@ -1,5 +1,5 @@
 """Published Seoul apartment price comparisons, refreshed outside web requests."""
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from statistics import median
@@ -40,6 +40,7 @@ def collect_district(code, months, dongs):
 
     candidates = _index_jeonse_candidates(transactions['rent'])
     rates = defaultdict(list)
+    sale_counts = Counter()
     seen = set()
     for sale in transactions['sale']:
         apt, dong = sale['아파트'], sale['법정동']
@@ -51,12 +52,14 @@ def collect_district(code, months, dongs):
         if fingerprint in seen:
             continue
         seen.add(fingerprint)
+        sale_counts[dong] += 1
         deposit, _ = _estimate_jeonse(sale, candidates.get((apt, dong), []))
         if deposit is not None:
             rates[dong].append(deposit / price * 100)
 
     return {
         dong: {
+            'sale_transaction_count': sale_counts[dong],
             'sale_sample_count': len(rates[dong]),
             'score': round(median(rates[dong]), 2) if len(rates[dong]) >= MIN_SALE_SAMPLES else None,
         }
@@ -78,6 +81,7 @@ def read_map_indicators(app, db, today=None, now=None):
         snapshots = {}
 
     for location in locations:
+        location['minimum_sale_sample_count'] = MIN_SALE_SAMPLES
         location['reason'] = 'uncollected' if location['dong'] else 'unmapped'
         snapshot = snapshots.get(location['region_code'])
         if not location['dong'] or snapshot is None:

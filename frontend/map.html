@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 지역별 참고 전세가율</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-3') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-4') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
@@ -133,10 +133,42 @@
     <div id="map"></div>
     <div class="map-title" role="status">회색 원은 검증된 지역 전세가율이 없는 위치입니다. 개별 매물은 검색해서 확인하세요.</div>
     </div>
+    <template id="map-indicator-template">
+        <div class="map-indicator-popup" role="dialog" aria-labelledby="map-popup-title">
+            <div class="map-popup-card">
+                <div class="map-popup-header">
+                    <div>
+                        <span class="map-popup-kicker">아파트 실거래</span>
+                        <h3 id="map-popup-title" data-field="region"></h3>
+                    </div>
+                    <button class="map-popup-close" type="button" aria-label="지역 정보 닫기">×</button>
+                </div>
+                <div class="map-popup-details">
+                    <div class="map-popup-summary">
+                        <div>
+                            <span>참고 전세가율</span>
+                            <strong data-field="ratio"></strong>
+                        </div>
+                        <span class="map-popup-status" data-field="status"></span>
+                    </div>
+                    <dl class="map-popup-samples" data-field="samples">
+                        <div><dt>기간 내 매매</dt><dd data-field="total"></dd></div>
+                        <div><dt>비교 가능한 매매</dt><dd data-field="matched"></dd></div>
+                    </dl>
+                    <p class="map-popup-note" data-field="note"></p>
+                    <dl class="map-popup-meta">
+                        <div><dt>계약 기간</dt><dd data-field="period"></dd></div>
+                        <div><dt>마지막 정상 갱신</dt><dd data-field="updated"></dd></div>
+                    </dl>
+                </div>
+                <button class="map-popup-search" type="button">개별 매물 조회 <span aria-hidden="true">→</span></button>
+            </div>
+        </div>
+    </template>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-3') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-4') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

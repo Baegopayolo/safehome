@@ -50,7 +50,7 @@ try:
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.add_init_script("""
             localStorage.setItem('regionJeonseRates', JSON.stringify({
-                역삼동: {score: 45, category: 'safe', timestamp: Date.now()}
+                청담동: {score: 45, category: 'safe', timestamp: Date.now()}
             }));
         """)
         page.route('https://dapi.kakao.com/v2/maps/sdk.js?*', lambda route: route.fulfill(
@@ -58,11 +58,26 @@ try:
             window.__mapCircles = [];
             window.kakao = {maps: {
                 LatLng: class { constructor(lat, lng) { this.lat = lat; this.lng = lng; } },
-                Map: class { setCenter() {} setLevel() {} },
+                Map: class { setCenter() {} setLevel() {} panBy() {} },
                 Circle: class {
                     constructor(options) { this.options = options; window.__mapCircles.push(this); }
                     setMap(map) { this.map = map; }
                     getPosition() { return this.options.center; }
+                },
+                CustomOverlay: class {
+                    constructor(options) {
+                        this.node = options.content;
+                        this.setMap(options.map);
+                    }
+                    setMap(map) {
+                        if (map) {
+                            Object.assign(this.node.style, {
+                                position: 'absolute', left: '50%', top: 'calc(50% + 85px)',
+                                transform: 'translate(-50%, -100%)'
+                            });
+                            document.getElementById('map').append(this.node);
+                        } else this.node.remove();
+                    }
                 },
                 InfoWindow: class {
                     constructor(options) {
@@ -80,7 +95,7 @@ try:
 
         def legacy_map_response(route):
             rows = route.fetch().json()
-            legacy = next(row for row in rows if row['region'] == '역삼동')
+            legacy = next(row for row in rows if row['region'] == '청담동')
             legacy['score'] = 45
             legacy.pop('status')
             route.fulfill(json=rows)
@@ -91,25 +106,38 @@ try:
         count = int(page.locator('#unknown-count').inner_text())
         expect(page.locator('#safe-count')).to_have_text('0')
         expect(page.locator('#region-list .region-item.unknown')).to_have_count(count)
-        expect(page.locator('#region-list .region-item').filter(has_text='역삼동')).to_contain_text('판단 불가')
+        expect(page.locator('#region-list .region-item').filter(has_text='청담동')).to_contain_text('판단 불가')
         expect(page.locator('#warning-count')).to_have_text('1')
         assert page.evaluate("window.__mapCircles.filter(circle => circle.options.fillColor === '#6b7280').length") == count
-        page.evaluate("window.regionData['강남구 삼성동'].circle.click()")
-        popup = page.locator('.map-fixture-popup')
-        expect(popup).to_contain_text('참고 전세가율 72.5%')
-        expect(popup).to_contain_text('비교 가능한 매매 표본 8건')
+        page.get_by_role('button', name='☰').click()
+        page.locator('#region-list .region-item').filter(has_text='강남구 삼성동').click()
+        popup = page.get_by_role('dialog', name='강남구 삼성동')
+        expect(popup.locator('[data-field="ratio"]')).to_have_text('72.5%')
+        expect(popup.locator('[data-field="matched"]')).to_have_text('8건 / 최소 5건')
         expect(popup).to_contain_text('계약 기간')
         expect(popup).to_contain_text('마지막 정상 갱신')
         page.evaluate("window.regionData['관악구 삼성동'].circle.click()")
-        expect(popup).to_contain_text('판단 불가')
+        expect(page.get_by_role('dialog', name='관악구 삼성동')).to_contain_text('판단 불가')
+        page.evaluate("window.regionData['역삼동'].circle.click()")
+        gray_popup = page.get_by_role('dialog', name='역삼동')
+        expect(gray_popup.locator('[data-field="status"]')).to_have_text('판단 불가')
+        expect(gray_popup.locator('[data-field="total"]')).to_have_text('43건')
+        expect(gray_popup.locator('[data-field="matched"]')).to_have_text('2건 / 최소 5건')
+        expect(gray_popup).to_contain_text('순수 전세가 3건 이상')
+        expect(gray_popup).to_have_css('padding-bottom', '24px')
+        box = gray_popup.bounding_box()
+        assert 0 <= box['x'] and box['x'] + box['width'] <= 390 and 120 <= box['y']
+        page.keyboard.press('Escape')
+        expect(gray_popup).to_have_count(0)
 
         def map_search_response(route):
             assert parse_qs(urlsplit(route.request.url).query)['region'] == ['강남구 삼성동']
             route.fulfill(json={'properties': [{'name': '비교 가능한 아파트', 'jeonse_rate': 72}]})
 
         page.route('**/analyze?*', map_search_response)
-        page.locator('#address-search').fill('강남구 삼성동')
-        page.locator('#search-btn').click()
+        page.evaluate("window.regionData['강남구 삼성동'].circle.click()")
+        popup.get_by_role('button', name='개별 매물 조회').click()
+        expect(popup).to_have_count(0)
         expect(page.locator('.map-fixture-popup')).to_contain_text('판단 불가')
         expect(page.locator('#real-tx-results')).to_contain_text('72%')
         expect(page.locator('#unknown-count')).to_have_text(str(count))

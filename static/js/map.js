@@ -5,22 +5,23 @@ let regionData = {};
 const scannerBaseUrl = typeof SAFEHOME_CONFIG !== 'undefined' ? SAFEHOME_CONFIG.scannerUrl : '/searchscan';
 let currentFilter = 'all';
 let regions = [];
+let regionPopup;
 
 const unknownMapIndicator = { category: 'unknown', text: '판단 불가', color: '#6b7280' };
 const mapUnavailableReasons = {
     uncollected: '아직 정상 수집된 자료가 없습니다.',
     unmapped: '이 위치와 연결할 법정동이 확인되지 않았습니다.',
-    stale: '현재 계약 기간에 맞는 최신 자료가 없습니다.',
-    insufficient: '비교 가능한 매매 표본이 부족합니다.'
+    stale: '현재 계약 기간에 맞는 최신 자료가 없습니다.'
 };
 const mapUpdateFormat = new Intl.DateTimeFormat('ko-KR', {
-    dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Seoul'
+    dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23', timeZone: 'Asia/Seoul'
 });
 
 function getMapIndicator(region) {
     const score = region.score;
     if (region.status !== 'available' || !Number.isFinite(score) || score <= 0 ||
-        !Number.isInteger(region.sale_sample_count) || region.sale_sample_count < 5 ||
+        !Number.isInteger(region.sale_sample_count) ||
+        region.sale_sample_count < (region.minimum_sale_sample_count ?? 5) ||
         !region.period?.from || !region.period?.to || !region.last_updated) {
         return unknownMapIndicator;
     }
@@ -224,41 +225,53 @@ function initMap() {
 function selectMapRegion(region, position) {
     window.currentSearchAbortController?.abort();
     clearRealTransactionCircles();
+    if (window.matchMedia('(max-width: 960px)').matches) {
+        const panel = document.getElementById('side-panel');
+        panel.classList.remove('active');
+        panel.classList.add('hidden');
+    }
     map.setCenter(position);
     map.setLevel(5);
     document.getElementById('address-search').value = region;
 
     const data = regionData[region].data;
-    const content = document.createElement('div');
-    content.className = 'map-indicator-popup';
-    const heading = document.createElement('h4');
-    heading.textContent = region;
-    const label = document.createElement('strong');
-    label.style.color = data.indicator.color;
-    label.textContent = data.indicator.category === 'unknown'
-        ? '판단 불가' : `참고 전세가율 ${data.score.toFixed(1)}% · ${data.indicator.text}`;
-    content.append(heading, label);
-
+    const content = document.getElementById('map-indicator-template').content.firstElementChild.cloneNode(true);
+    const field = name => content.querySelector(`[data-field="${name}"]`);
+    const minimum = data.minimum_sale_sample_count ?? 5;
+    const hasSamples = Number.isInteger(data.sale_sample_count);
+    content.dataset.category = data.indicator.category;
+    field('region').textContent = region;
+    field('ratio').textContent = data.indicator.category === 'unknown' ? '—' : `${data.score.toFixed(1)}%`;
+    field('status').textContent = data.indicator.text;
+    field('samples').hidden = !hasSamples;
+    field('total').textContent = Number.isInteger(data.sale_transaction_count)
+        ? `${data.sale_transaction_count.toLocaleString('ko-KR')}건` : '—';
+    field('matched').textContent = hasSamples
+        ? `${data.sale_sample_count.toLocaleString('ko-KR')}건 / 최소 ${minimum}건` : '—';
+    field('note').textContent = data.reason === 'insufficient'
+        ? '매매마다 같은 단지에서 면적과 계약일이 비슷한 순수 전세가 3건 이상 필요합니다.'
+        : mapUnavailableReasons[data.reason] || '비교 가능한 매매를 기준으로 계산한 참고 지표입니다.';
+    field('period').textContent = data.period
+        ? `${data.period.from.replaceAll('-', '.')} – ${data.period.to.replaceAll('-', '.')}` : '—';
     const updated = Date.parse(data.last_updated);
-    const details = [
-        mapUnavailableReasons[data.reason],
-        Number.isInteger(data.sale_sample_count) && `비교 가능한 매매 표본 ${data.sale_sample_count}건`,
-        data.period && `계약 기간 ${data.period.from} ~ ${data.period.to}`,
-        Number.isFinite(updated) && `마지막 정상 갱신 ${mapUpdateFormat.format(updated)} (한국시간)`
-    ];
-    for (const detail of details.filter(Boolean)) {
-        const row = document.createElement('div');
-        row.textContent = detail;
-        content.append(row);
-    }
+    field('updated').textContent = Number.isFinite(updated) ? `${mapUpdateFormat.format(updated)} KST` : '—';
+    const close = content.querySelector('.map-popup-close');
+    close.onclick = () => {
+        closeRegionPopup();
+        document.querySelector('.sidebar-toggle-btn.left-toggle')?.focus({ preventScroll: true });
+    };
+    content.addEventListener('keydown', event => {
+        if (event.key === 'Escape') close.click();
+    });
+    content.querySelector('.map-popup-search').onclick = () => loadRealTransactionsForMap(region, position, true);
+    regionPopup = new kakao.maps.CustomOverlay({ map, position, content, clickable: true, yAnchor: 1, zIndex: 10 });
+    map.panBy(0, -126);
+    close.focus({ preventScroll: true });
+}
 
-    const search = document.createElement('button');
-    search.type = 'button';
-    search.textContent = '개별 매물 조회';
-    search.onclick = () => loadRealTransactionsForMap(region, position, true);
-    content.append(search);
-    window.realTxInfoWindow = new kakao.maps.InfoWindow({ position, content, removable: true });
-    window.realTxInfoWindow.open(map);
+function closeRegionPopup() {
+    regionPopup?.setMap(null);
+    regionPopup = null;
 }
 
 // 즐겨찾기 관련 함수
@@ -557,6 +570,7 @@ function loadRealTransactionsForMap(region, coords, autoOpenInfoWindow = true, s
     if (window[requestKey]) {
         return; // 이미 진행 중인 요청이 있으면 중복 호출 방지
     }
+    closeRegionPopup();
     
     // 이전 검색 요청 취소 (다른 지역 검색 시)
     if (window.currentSearchAbortController) {
@@ -839,6 +853,7 @@ function displayRealTransactionCircles(region, properties, centerCoords, autoOpe
 
 // 실거래 원 제거 및 기존 원 복원
 function clearRealTransactionCircles() {
+    closeRegionPopup();
     // 실거래 원 제거
     if (window.realTxCircles) {
         window.realTxCircles.forEach(circle => circle.setMap(null));

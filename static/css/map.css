@@ -78,21 +78,129 @@ body{margin:0;font-family:sans-serif}
 .stat-card.unknown .stat-number{color:#6b7280}
 
 @media (max-width: 600px) {
-    #search-container { width: calc(100% - 24px); box-sizing: border-box; }
+    #search-container { position: absolute; top: 10px; width: calc(100% - 24px); }
     #address-search { width: auto; min-width: 0; flex: 1; }
     .map-title { width: calc(100% - 32px); box-sizing: border-box; }
 }
 .map-indicator-popup {
-    padding: 12px;
-    min-width: 200px;
+    --popup-accent: #475569;
+    --popup-tint: #f1f5f9;
+    --popup-bottom-gap: 24px;
+    position: relative;
+    width: min(324px, calc(100vw - 28px));
+    padding-bottom: var(--popup-bottom-gap);
+    color: #18243a;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.45;
+    white-space: normal;
 }
 
-.map-indicator-popup h4 {
-    margin: 0 0 4px;
+.map-indicator-popup[data-category="safe"] { --popup-accent: #166534; --popup-tint: #ecfdf3; }
+.map-indicator-popup[data-category="warning"] { --popup-accent: #854d0e; --popup-tint: #fffbeb; }
+.map-indicator-popup[data-category="danger"] { --popup-accent: #a61b31; --popup-tint: #fff1f3; }
+
+.map-indicator-popup::after {
+    content: '';
+    position: absolute;
+    bottom: calc(var(--popup-bottom-gap) - 5px);
+    left: calc(50% - 6px);
+    width: 12px;
+    height: 12px;
+    transform: rotate(45deg);
+    background: #fff;
+    border-right: 1px solid #dbe3ec;
+    border-bottom: 1px solid #dbe3ec;
+    pointer-events: none;
 }
 
-.map-indicator-popup button {
-    margin-top: 8px;
+.map-popup-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    max-height: min(410px, calc(50dvh - 25px));
+    padding: 12px 12px 16px;
+    border: 1px solid #dbe3ec;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 12px 30px #15274333, 0 2px 8px #15274312;
 }
+
+.map-popup-details {
+    display: grid;
+    gap: 7px;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.map-popup-header, .map-popup-summary, .map-popup-meta > div, .map-popup-search {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.map-popup-kicker, .map-popup-samples dt, .map-popup-meta dt {
+    color: #52617a;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.map-popup-header h3 { margin: 1px 0 0; font-size: 19px; line-height: 1.2; }
+
+.map-popup-close, .map-popup-search { cursor: pointer; font: inherit; }
+.map-popup-close {
+    flex: 0 0 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #34435b;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.map-popup-summary {
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: var(--popup-tint);
+    color: var(--popup-accent);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.map-popup-summary strong { display: block; font-size: 24px; line-height: 1.15; }
+.map-popup-status {
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.map-popup-samples {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 6px;
+}
+
+.map-popup-samples[hidden] { display: none; }
+.map-popup-samples > div { padding: 5px 8px; border: 1px solid #e4eaf1; border-radius: 8px; }
+.map-popup-samples, .map-popup-meta, .map-popup-note { margin: 0; }
+.map-popup-samples dd, .map-popup-meta dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
+.map-popup-note { color: #43536a; font-size: 12px; overflow-wrap: break-word; }
+.map-popup-meta { display: grid; gap: 2px; padding-top: 5px; border-top: 1px solid #e4eaf1; }
+.map-popup-meta dd { font-size: 11px; text-align: right; }
+
+.map-popup-search {
+    width: 100%;
+    min-height: 38px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: #174b9a;
+    color: #fff;
+    font-weight: 700;
+}
+
+.map-popup-search:hover { background: #123c7d; }
+.map-popup-close:hover { background: #e2e8f0; }
+.map-indicator-popup button:focus-visible { outline: 2px solid #1d62c3; outline-offset: 2px; }
