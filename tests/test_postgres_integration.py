@@ -48,7 +48,8 @@ sys.path.insert(0, 'backend')
 from app import app, db
 from dashboard import KST
 from datetime import datetime
-from rental_collector import collect_scope, normalize
+from map_indicators import comparison_period
+from rental_collector import collect_scope, normalize, utcnow
 with app.app_context():
     models = app.extensions['dashboard_models']
     today = datetime.now(KST).date()
@@ -67,6 +68,14 @@ with app.app_context():
     assert sum(r['transaction_count'] or 0 for r in payload['regions']) == 1
     assert sum(r['transaction_count'] or 0 for r in payload['trends']) == 1
     assert payload['coverage']['failures'][0]['error_code'] == 'STORAGE_OR_INTERNAL_ERROR'
+    _, start, end = comparison_period(today)
+    Snapshot = app.extensions['map_snapshot']
+    db.session.add(Snapshot(region_code='11680', period_start=start, period_end=end,
+                           collected_at=utcnow(), indicators={'역삼동': {'score': 72, 'sale_sample_count': 5}}))
+    db.session.commit()
+    locations = app.test_client().get('/heatmap').get_json()
+    yeoksam = next(location for location in locations if location['dong'] == '역삼동')
+    assert (yeoksam['status'], yeoksam['score'], yeoksam['sale_sample_count']) == ('available', 72, 5)
 """)
                 run(*flask, 'backup-db', '--directory', directory)
             finally:

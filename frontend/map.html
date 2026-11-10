@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 지역별 참고 전세가율</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-2') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-3') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
@@ -119,7 +119,9 @@
                 <div class="legend-color" style="background:#6b7280"></div>
                 <span class="legend-label">판단 불가 (검증된 지역 집계 없음)</span>
             </div>
-            <p class="legend-label">원은 지역의 위치를 나타냅니다. 전세가율만으로 계약의 안전을 판단할 수 없습니다.</p>
+            <p class="legend-label">원의 크기는 일정하며 지역의 위치를 나타냅니다. 전세가율만으로 계약의 안전을 판단할 수 없습니다.</p>
+            <p class="legend-label">지역 지표는 비교 가능한 매매 표본에서 계산한 전세가율의 중앙값입니다.</p>
+            <p class="legend-label">자료 출처는 국토교통부 <a href="https://www.data.go.kr/data/15126468/openapi.do">아파트 매매</a> 및 <a href="https://www.data.go.kr/data/15126474/openapi.do">전월세 실거래</a>입니다.</p>
         </div>
     </div>
     <div id="search-container">
@@ -134,7 +136,7 @@
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-2') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-3') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

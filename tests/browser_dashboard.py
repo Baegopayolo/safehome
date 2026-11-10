@@ -68,12 +68,13 @@ try:
                     constructor(options) {
                         this.node = document.createElement('div');
                         this.node.className = 'map-fixture-popup';
-                        this.node.innerHTML = options.content;
+                        if (typeof options.content === 'string') this.node.innerHTML = options.content;
+                        else this.node.append(options.content);
                     }
                     open() { document.getElementById('map').append(this.node); }
                     close() { this.node.remove(); }
                 },
-                event: { addListener() {} }
+                event: { addListener(target, name, handler) { target[name] = handler; } }
             }};
         """))
 
@@ -91,8 +92,16 @@ try:
         expect(page.locator('#safe-count')).to_have_text('0')
         expect(page.locator('#region-list .region-item.unknown')).to_have_count(count)
         expect(page.locator('#region-list .region-item').filter(has_text='역삼동')).to_contain_text('판단 불가')
-        assert page.evaluate("window.__mapCircles.every(circle => circle.options.fillColor === '#6b7280')")
-        assert page.evaluate('window.__mapCircles.length') == count
+        expect(page.locator('#warning-count')).to_have_text('1')
+        assert page.evaluate("window.__mapCircles.filter(circle => circle.options.fillColor === '#6b7280').length") == count
+        page.evaluate("window.regionData['강남구 삼성동'].circle.click()")
+        popup = page.locator('.map-fixture-popup')
+        expect(popup).to_contain_text('참고 전세가율 72.5%')
+        expect(popup).to_contain_text('비교 가능한 매매 표본 8건')
+        expect(popup).to_contain_text('계약 기간')
+        expect(popup).to_contain_text('마지막 정상 갱신')
+        page.evaluate("window.regionData['관악구 삼성동'].circle.click()")
+        expect(popup).to_contain_text('판단 불가')
 
         def map_search_response(route):
             assert parse_qs(urlsplit(route.request.url).query)['region'] == ['강남구 삼성동']
@@ -108,7 +117,7 @@ try:
         assert not errors, errors
         page.close()
         browser.close()
-    print('Browser checks passed: dashboard layout, 503 and retry, and gray markers for legacy map scores.')
+    print('Browser checks passed: dashboard layout, 503 and retry, map evidence and gray markers.')
 finally:
     server.terminate()
     try:

@@ -35,7 +35,7 @@ Nginx에서 `/static/`을 직접 제공하는 경우 `alias /home/ubuntu/safehom
 - `DATABASE_URL`: 기존 PostgreSQL 접속 설정 유지
 - `SECRET_KEY`: 기존 값 유지
 - `MOLIT_RENT_API_KEY`: 국토교통부 아파트 전월세 API 승인 키
-- `MOLIT_API_KEY`: 전월세 활용 권한이 있을 때만 대체 키로 사용
+- `MOLIT_API_KEY`: 국토교통부 아파트 매매 실거래가 상세 API 승인 키. 전월세 활용 권한도 있는 경우 전월세 키의 대체 키로 사용
 - `DASHBOARD_RECENT_STALE_HOURS=36`: 이번 달을 포함한 최근 3개월의 갱신 지연 기준
 - `DASHBOARD_STALE_HOURS=192`: 이전 9개월의 갱신 지연 기준
 - `DASHBOARD_LOCK_PATH=/home/ubuntu/.local/state/safehome/dashboard.lock`
@@ -98,6 +98,16 @@ sudo systemctl start safehome-collect.service
 `ProtectHome=read-only`를 사용하므로 `/home/ubuntu`의 코드·환경은 읽을 수 있고 지정된
 `.local/state/safehome`만 쓸 수 있습니다. 비밀 설정이나 파일 경로를 변경하면
 환경 파일과 `ReadWritePaths`도 함께 확인하세요.
+
+### 지도 참고 전세가율 수집
+
+지도는 국토교통부 [아파트 매매 상세](https://www.data.go.kr/data/15126468/openapi.do)와 [아파트 전월세](https://www.data.go.kr/data/15126474/openapi.do) 자료를 비교합니다. 매매 상세와 전월세 권한이 모두 필요합니다. 지도의 첫 수집은 `db upgrade` 후 준비된 릴리스에서 `sync-map-indicators`로 실행합니다. `--region 11680`으로 강남구부터 검증할 수 있습니다.
+
+- 완료된 최근 3개 계약월의 자료를 자치구별로 가져옵니다. 법정동과 단지명이 같고 지번 또는 건축연도가 일치하며 면적 차이가 1㎡ 이내, 계약일 차이가 30일 이내인 순수 전세를 비교합니다.
+- 비교 전세가 3건 이상인 매매에 대해 보증금 중앙값을 매매가로 나눕니다. 같은 법정동에서 이 값을 계산할 수 있는 매매가 5건 이상일 때만 전세가율의 중앙값을 표시합니다. 공개 필드가 같은 거래는 중복을 피하기 위해 한 건으로 처리합니다.
+- 수집에 실패한 구의 이전 집계는 보존합니다. 첫 수집 전, 표본 부족, 법정동 미확인, 계약월 변경 또는 마지막 정상 수집 후 36시간 경과 시 회색으로 표시합니다. 계약 기간은 비교에 사용한 범위이며 신고 지연과 정정은 재수집에 반영합니다.
+
+릴리스 전환과 첫 수집 확인 후 `safehome-map-collect.service` 및 `safehome-map-collect.timer`를 설치하고 `systemctl daemon-reload`와 `systemctl enable --now safehome-map-collect.timer`를 실행합니다. 한국 시간 매일 05:30 이후 0~5분 내에 시작합니다. `journalctl -u safehome-map-collect.service`에서 구별 수집 결과를 확인합니다. 이전 릴리스로 복구할 때는 지도 타이머를 먼저 정지합니다.
 
 ## 예약 작업 감시와 복구 훈련
 

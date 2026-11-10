@@ -1,6 +1,8 @@
 import os
+from datetime import date, timedelta
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
 
@@ -153,6 +155,65 @@ class PropertyTests(unittest.TestCase):
                 self.assertEqual((saved.score, saved.lat, saved.lng), (91, 0, 0))
             finally:
                 db.drop_all()
+
+    def test_map_sync_publishes_only_comparable_sales_and_preserves_previous_snapshot(self):
+        from app import db
+        from map_indicators import read_map_indicators
+        from rental_collector import utcnow
+
+        today = date(2026, 11, 10)
+        common = {'아파트': '테스트', '법정동': '삼성동', '건축년도': '2005', '지번': '123-0',
+                  '전용면적': '84', '층': '3', '거래일자': '2026-10-10'}
+        sales = [dict(common, 거래금액=price) for price in (80000, 90000, 100000, 110000, 120000)]
+        rents = [dict(common, 전세금액=deposit, 월세금액=0) for deposit in (55000, 60000, 62000)]
+        rents += [rents[0], dict(common, 전세금액=10000, 월세금액=10)]
+
+        def load(kind, code, month):
+            self.assertIn(code, {'11620', '11680'})
+            if month != '202610':
+                return []
+            other = dict(common, 법정동='역삼동')
+            if kind == 'sale':
+                return sales + [sales[0], dict(other, 거래금액=100000)]
+            return rents + [dict(rent, 법정동='역삼동') for rent in rents]
+
+        with self.app.app_context(), TemporaryDirectory() as state, patch.dict(
+            self.app.config, {'DASHBOARD_LOCK_PATH': str(Path(state) / 'dashboard.lock')},
+        ):
+            db.create_all()
+            self.addCleanup(self.drop_map_test_db, db)
+            clock_patch = patch('map_indicators.datetime', wraps=utils.datetime)
+            with clock_patch as clock, patch('map_indicators.load_transaction_snapshot', side_effect=load) as source:
+                clock.now.return_value = utils.datetime.combine(today, utils.datetime.min.time())
+                runner = self.app.test_cli_runner()
+                args = ['sync-map-indicators', '--region', '11680', '--region', '11620']
+                result = runner.invoke(args=args)
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertEqual(source.call_count, 12)
+                before = {row['region']: row for row in self.app.test_client().get('/heatmap').json}
+                gangnam = before['강남구 삼성동']
+                self.assertEqual((gangnam['region_code'], gangnam['sale_sample_count'], gangnam['score']),
+                                 ('11680', 5, 60))
+                self.assertEqual(gangnam['period'], {'from': '2026-08-01', 'to': '2026-10-31'})
+                self.assertEqual((before['관악구 삼성동']['region_code'], before['관악구 삼성동']['reason']),
+                                 ('11620', 'unmapped'))
+                self.assertEqual((before['역삼동']['sale_sample_count'], before['역삼동']['reason']),
+                                 (1, 'insufficient'))
+                self.assertIsNone(before['역삼동']['score'])
+
+                source.side_effect = utils.TransactionSourceError('UPSTREAM_REJECTED')
+                self.assertEqual(runner.invoke(args=args).exit_code, 1)
+                after = {row['region']: row for row in self.app.test_client().get('/heatmap').json}
+                self.assertEqual(before, after)
+
+            for day, now in ((today, utcnow() + timedelta(hours=37)), (date(2026, 12, 1), utcnow())):
+                rows = read_map_indicators(self.app, db, today=day, now=now)
+                stale = next(row for row in rows if row['region'] == '강남구 삼성동')
+                self.assertEqual((stale['score'], stale['reason']), (None, 'stale'))
+
+    def drop_map_test_db(self, db):
+        with self.app.app_context():
+            db.drop_all()
 
     def test_legacy_map_writes_are_blocked_for_every_role(self):
         from app import db, HeatmapData, User

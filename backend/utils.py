@@ -287,77 +287,76 @@ def load_transaction_snapshot(kind, lawd_cd, deal_ymd):
 
 
 def get_heatmap_data():
-    """Return map locations without scores that lack verified sample provenance."""
-    # The fixed coordinates represent locations, rather than measured areas.
+    """Return the fixed map locations and their public-data lookup keys."""
+    # A location without an exact legal-dong match has no lookup key.
     default_regions = [
         # 강남구
-        {'region': '청담동', 'lat': 37.5196, 'lng': 127.0473},
-        {'region': '역삼동', 'lat': 37.5000, 'lng': 127.0364},
-        {'region': '강남구 삼성동', 'lat': 37.5146, 'lng': 127.0491},
-        {'region': '대치동', 'lat': 37.4932, 'lng': 127.0576},
-        {'region': '압구정동', 'lat': 37.5275, 'lng': 127.0286},
-        {'region': '논현동', 'lat': 37.5111, 'lng': 127.0216},
-        {'region': '신사동', 'lat': 37.5208, 'lng': 127.0225},
-        {'region': '도곡동', 'lat': 37.4905, 'lng': 127.0554},
-        {'region': '개포동', 'lat': 37.4789, 'lng': 127.0525},
-        {'region': '일원동', 'lat': 37.4833, 'lng': 127.0833},
+        {'region': '청담동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '청담동', 'lat': 37.5196, 'lng': 127.0473},
+        {'region': '역삼동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '역삼동', 'lat': 37.5000, 'lng': 127.0364},
+        {'region': '강남구 삼성동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '삼성동', 'lat': 37.5146, 'lng': 127.0491},
+        {'region': '대치동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '대치동', 'lat': 37.4932, 'lng': 127.0576},
+        {'region': '압구정동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '압구정동', 'lat': 37.5275, 'lng': 127.0286},
+        {'region': '논현동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '논현동', 'lat': 37.5111, 'lng': 127.0216},
+        {'region': '신사동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '신사동', 'lat': 37.5208, 'lng': 127.0225},
+        {'region': '도곡동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '도곡동', 'lat': 37.4905, 'lng': 127.0554},
+        {'region': '개포동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '개포동', 'lat': 37.4789, 'lng': 127.0525},
+        {'region': '일원동', 'region_code': SEOUL_SIGUNGU_CODES['강남구'], 'dong': '일원동', 'lat': 37.4833, 'lng': 127.0833},
         # 강서구
-        {'region': '화곡동', 'lat': 37.5414, 'lng': 126.8404},
-        {'region': '등촌동', 'lat': 37.5567, 'lng': 126.8567},
-        {'region': '마곡동', 'lat': 37.5667, 'lng': 126.8267},
-        {'region': '가양동', 'lat': 37.5617, 'lng': 126.8500},
-        {'region': '염창동', 'lat': 37.5500, 'lng': 126.8667},
-        {'region': '공항동', 'lat': 37.5583, 'lng': 126.8083},
+        {'region': '화곡동', 'region_code': SEOUL_SIGUNGU_CODES['강서구'], 'dong': '화곡동', 'lat': 37.5414, 'lng': 126.8404},
+        {'region': '등촌동', 'region_code': SEOUL_SIGUNGU_CODES['강서구'], 'dong': '등촌동', 'lat': 37.5567, 'lng': 126.8567},
+        {'region': '마곡동', 'region_code': SEOUL_SIGUNGU_CODES['강서구'], 'dong': '마곡동', 'lat': 37.5667, 'lng': 126.8267},
+        {'region': '가양동', 'region_code': SEOUL_SIGUNGU_CODES['강서구'], 'dong': '가양동', 'lat': 37.5617, 'lng': 126.8500},
+        {'region': '염창동', 'region_code': SEOUL_SIGUNGU_CODES['강서구'], 'dong': '염창동', 'lat': 37.5500, 'lng': 126.8667},
+        {'region': '공항동', 'region_code': SEOUL_SIGUNGU_CODES['강서구'], 'dong': '공항동', 'lat': 37.5583, 'lng': 126.8083},
         # 마포구
-        {'region': '서교동', 'lat': 37.5563, 'lng': 126.9238},
-        {'region': '연남동', 'lat': 37.5639, 'lng': 126.9250},
-        {'region': '성산동', 'lat': 37.5667, 'lng': 126.9000},
-        {'region': '합정동', 'lat': 37.5500, 'lng': 126.9139},
-        {'region': '상암동', 'lat': 37.5767, 'lng': 126.8933},
+        {'region': '서교동', 'region_code': SEOUL_SIGUNGU_CODES['마포구'], 'dong': '서교동', 'lat': 37.5563, 'lng': 126.9238},
+        {'region': '연남동', 'region_code': SEOUL_SIGUNGU_CODES['마포구'], 'dong': '연남동', 'lat': 37.5639, 'lng': 126.9250},
+        {'region': '성산동', 'region_code': SEOUL_SIGUNGU_CODES['마포구'], 'dong': '성산동', 'lat': 37.5667, 'lng': 126.9000},
+        {'region': '합정동', 'region_code': SEOUL_SIGUNGU_CODES['마포구'], 'dong': '합정동', 'lat': 37.5500, 'lng': 126.9139},
+        {'region': '상암동', 'region_code': SEOUL_SIGUNGU_CODES['마포구'], 'dong': '상암동', 'lat': 37.5767, 'lng': 126.8933},
         # 송파구
-        {'region': '잠실동', 'lat': 37.5133, 'lng': 127.1028},
-        {'region': '신천동', 'lat': 37.5142, 'lng': 127.1025},
-        {'region': '방이동', 'lat': 37.5083, 'lng': 127.1250},
-        {'region': '문정동', 'lat': 37.4850, 'lng': 127.1233},
-        {'region': '가락동', 'lat': 37.4933, 'lng': 127.1183},
-        {'region': '석촌동', 'lat': 37.5042, 'lng': 127.1025},
+        {'region': '잠실동', 'region_code': SEOUL_SIGUNGU_CODES['송파구'], 'dong': '잠실동', 'lat': 37.5133, 'lng': 127.1028},
+        {'region': '신천동', 'region_code': SEOUL_SIGUNGU_CODES['송파구'], 'dong': '신천동', 'lat': 37.5142, 'lng': 127.1025},
+        {'region': '방이동', 'region_code': SEOUL_SIGUNGU_CODES['송파구'], 'dong': '방이동', 'lat': 37.5083, 'lng': 127.1250},
+        {'region': '문정동', 'region_code': SEOUL_SIGUNGU_CODES['송파구'], 'dong': '문정동', 'lat': 37.4850, 'lng': 127.1233},
+        {'region': '가락동', 'region_code': SEOUL_SIGUNGU_CODES['송파구'], 'dong': '가락동', 'lat': 37.4933, 'lng': 127.1183},
+        {'region': '석촌동', 'region_code': SEOUL_SIGUNGU_CODES['송파구'], 'dong': '석촌동', 'lat': 37.5042, 'lng': 127.1025},
         # 관악구
-        {'region': '신림동', 'lat': 37.4842, 'lng': 126.9294},
-        {'region': '봉천동', 'lat': 37.4833, 'lng': 126.9500},
-        {'region': '서원동', 'lat': 37.4767, 'lng': 126.9333},
-        {'region': '관악구 삼성동', 'lat': 37.4700, 'lng': 126.9300},
+        {'region': '신림동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'lat': 37.4842, 'lng': 126.9294},
+        {'region': '봉천동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '봉천동', 'lat': 37.4833, 'lng': 126.9500},
+        {'region': '서원동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': None, 'lat': 37.4767, 'lng': 126.9333},
+        {'region': '관악구 삼성동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': None, 'lat': 37.4700, 'lng': 126.9300},
         # 강동구
-        {'region': '명일동', 'lat': 37.5500, 'lng': 127.1436},
-        {'region': '천호동', 'lat': 37.5383, 'lng': 127.1233},
-        {'region': '성내동', 'lat': 37.5283, 'lng': 127.1267},
-        {'region': '길동', 'lat': 37.5367, 'lng': 127.1400},
+        {'region': '명일동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '명일동', 'lat': 37.5500, 'lng': 127.1436},
+        {'region': '천호동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '천호동', 'lat': 37.5383, 'lng': 127.1233},
+        {'region': '성내동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '성내동', 'lat': 37.5283, 'lng': 127.1267},
+        {'region': '길동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '길동', 'lat': 37.5367, 'lng': 127.1400},
         # 영등포구
-        {'region': '여의도동', 'lat': 37.5217, 'lng': 126.9242},
-        {'region': '당산동', 'lat': 37.5267, 'lng': 126.8967},
-        {'region': '문래동', 'lat': 37.5167, 'lng': 126.8967},
-        {'region': '신길동', 'lat': 37.5133, 'lng': 126.9133},
+        {'region': '여의도동', 'region_code': SEOUL_SIGUNGU_CODES['영등포구'], 'dong': '여의도동', 'lat': 37.5217, 'lng': 126.9242},
+        {'region': '당산동', 'region_code': SEOUL_SIGUNGU_CODES['영등포구'], 'dong': '당산동', 'lat': 37.5267, 'lng': 126.8967},
+        {'region': '문래동', 'region_code': SEOUL_SIGUNGU_CODES['영등포구'], 'dong': '문래동', 'lat': 37.5167, 'lng': 126.8967},
+        {'region': '신길동', 'region_code': SEOUL_SIGUNGU_CODES['영등포구'], 'dong': '신길동', 'lat': 37.5133, 'lng': 126.9133},
         # 서초구
-        {'region': '반포동', 'lat': 37.5042, 'lng': 127.0058},
-        {'region': '서초동', 'lat': 37.4833, 'lng': 127.0333},
-        {'region': '방배동', 'lat': 37.4833, 'lng': 126.9967},
-        {'region': '양재동', 'lat': 37.4700, 'lng': 127.0400},
+        {'region': '반포동', 'region_code': SEOUL_SIGUNGU_CODES['서초구'], 'dong': '반포동', 'lat': 37.5042, 'lng': 127.0058},
+        {'region': '서초동', 'region_code': SEOUL_SIGUNGU_CODES['서초구'], 'dong': '서초동', 'lat': 37.4833, 'lng': 127.0333},
+        {'region': '방배동', 'region_code': SEOUL_SIGUNGU_CODES['서초구'], 'dong': '방배동', 'lat': 37.4833, 'lng': 126.9967},
+        {'region': '양재동', 'region_code': SEOUL_SIGUNGU_CODES['서초구'], 'dong': '양재동', 'lat': 37.4700, 'lng': 127.0400},
         # 용산구
-        {'region': '이촌동', 'lat': 37.5192, 'lng': 126.9767},
-        {'region': '한남동', 'lat': 37.5333, 'lng': 127.0067},
-        {'region': '이태원동', 'lat': 37.5342, 'lng': 126.9942},
+        {'region': '이촌동', 'region_code': SEOUL_SIGUNGU_CODES['용산구'], 'dong': '이촌동', 'lat': 37.5192, 'lng': 126.9767},
+        {'region': '한남동', 'region_code': SEOUL_SIGUNGU_CODES['용산구'], 'dong': '한남동', 'lat': 37.5333, 'lng': 127.0067},
+        {'region': '이태원동', 'region_code': SEOUL_SIGUNGU_CODES['용산구'], 'dong': '이태원동', 'lat': 37.5342, 'lng': 126.9942},
         # 종로구
-        {'region': '종로동', 'lat': 37.5700, 'lng': 126.9800},
-        {'region': '혜화동', 'lat': 37.5867, 'lng': 127.0000},
+        {'region': '종로동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': None, 'lat': 37.5700, 'lng': 126.9800},
+        {'region': '혜화동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': '혜화동', 'lat': 37.5867, 'lng': 127.0000},
         # 중구
-        {'region': '명동', 'lat': 37.5633, 'lng': 126.9833},
-        {'region': '을지로동', 'lat': 37.5667, 'lng': 126.9900},
+        {'region': '명동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': None, 'lat': 37.5633, 'lng': 126.9833},
+        {'region': '을지로동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': None, 'lat': 37.5667, 'lng': 126.9900},
         # 노원구
-        {'region': '상계동', 'lat': 37.6633, 'lng': 127.0733},
-        {'region': '하계동', 'lat': 37.6367, 'lng': 127.0700},
+        {'region': '상계동', 'region_code': SEOUL_SIGUNGU_CODES['노원구'], 'dong': '상계동', 'lat': 37.6633, 'lng': 127.0733},
+        {'region': '하계동', 'region_code': SEOUL_SIGUNGU_CODES['노원구'], 'dong': '하계동', 'lat': 37.6367, 'lng': 127.0700},
     ]
     
     return [dict(region, score=None, status='unavailable') for region in default_regions]
-
 
 def filter_transactions_by_region(transactions, region):
     match = re.search(r'[가-힣0-9]+[동가리](?=[\s,]|$)', region or '')
@@ -400,6 +399,24 @@ def _estimate_jeonse(sale, candidates):
     return (median(deposits) if len(deposits) >= 3 else None), len(deposits)
 
 
+def _index_jeonse_candidates(rents):
+    candidates = {}
+    seen = set()
+    for rent in rents:
+        deposit = rent.get('전세금액')
+        if rent.get('월세금액') != 0 or not deposit or deposit <= 0:
+            continue
+        fields = _comparison_fields(rent)
+        if fields is None:
+            continue
+        key = (rent['아파트'], rent['법정동'])
+        fingerprint = (key, fields, rent.get('층'), deposit, rent.get('계약구분'), rent.get('계약기간'))
+        if fingerprint not in seen:
+            candidates.setdefault(key, []).append((fields, deposit))
+            seen.add(fingerprint)
+    return candidates
+
+
 def fetch_properties_by_region(region, db=None, RealTransaction=None):
     """Compare recent sales with comparable pure-jeonse records."""
     if not region:
@@ -424,20 +441,7 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None):
         except TransactionSourceError:
             rents, rent_available = [], False
 
-    candidates = {}
-    seen = set()
-    for rent in filter_transactions_by_region(rents, region):
-        deposit = rent.get('전세금액')
-        if rent.get('월세금액') != 0 or not deposit or deposit <= 0:
-            continue
-        fields = _comparison_fields(rent)
-        if fields is None:
-            continue
-        key = (rent['아파트'], rent['법정동'])
-        fingerprint = (key, fields, rent.get('층'), deposit, rent.get('계약구분'), rent.get('계약기간'))
-        if fingerprint not in seen:
-            candidates.setdefault(key, []).append((fields, deposit))
-            seen.add(fingerprint)
+    candidates = _index_jeonse_candidates(filter_transactions_by_region(rents, region))
 
     properties = []
     for sale in filter_transactions_by_region(sales, region):

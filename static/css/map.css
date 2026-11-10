@@ -82,3 +82,17 @@ body{margin:0;font-family:sans-serif}
     #address-search { width: auto; min-width: 0; flex: 1; }
     .map-title { width: calc(100% - 32px); box-sizing: border-box; }
 }
+.map-indicator-popup {
+    padding: 12px;
+    min-width: 200px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.map-indicator-popup h4 {
+    margin: 0 0 4px;
+}
+
+.map-indicator-popup button {
+    margin-top: 8px;
+}

@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 from werkzeug.serving import make_server
 from app import app, db
 from dashboard import KST
+from map_indicators import comparison_period
 from rental_collector import collect_scope, months_for, normalize, utcnow
 from utils import SEOUL_SIGUNGU_CODES
 
@@ -30,6 +31,11 @@ with app.app_context():
         dealYear=str(today.year), dealMonth=str(today.month), dealDay='1',
         aptNm='Fixture', umdNm='사직동', sggCd='11110'), '11110', month, today)
     assert collect_scope(db, models, '11110', month, 'fixture', today, fetch=lambda *_: ([row], 1))
+    _, start, end = comparison_period(today)
+    Snapshot = app.extensions['map_snapshot']
+    db.session.add(Snapshot(region_code='11680', period_start=start, period_end=end,
+                           collected_at=utcnow(), indicators={'삼성동': {'score': 72.5, 'sale_sample_count': 8}}))
+    db.session.commit()
 
 with make_server('127.0.0.1', 0, app) as server:
     print(f'http://127.0.0.1:{server.server_port}', flush=True)

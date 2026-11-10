@@ -61,6 +61,8 @@ api.register_api_routes(app, db)
 oauth.register_oauth_routes(app, db, bcrypt)
 from dashboard import register_dashboard
 register_dashboard(app, db)
+from map_indicators import register_map_indicators
+register_map_indicators(app, db)
 
 # Schema changes are explicit: run flask db upgrade before starting the app.
 

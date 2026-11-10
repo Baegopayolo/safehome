@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from datetime import datetime, timezone, timedelta
 from utils import (
     TransactionSourceError, _resolve_lawd_cd, load_transaction_snapshot,
-    filter_transactions_by_region, get_heatmap_data,
+    filter_transactions_by_region,
     fetch_properties_by_region, analyze_property_warnings, generate_safety_checklist,
 )
 from models import SearchHistory, Favorite, Review, Report, Notification, RealTransaction, HeatmapData
@@ -97,10 +97,11 @@ def generate_real_notifications(db, HeatmapData, RealTransaction):
     return notifications
 
 def register_api_routes(app, db):
+    from map_indicators import read_map_indicators
     from models import RealTransaction, HeatmapData
     @app.get('/heatmap')
     def heatmap():
-        response = jsonify(get_heatmap_data())
+        response = jsonify(read_map_indicators(app, db))
         response.headers['Cache-Control'] = 'no-store'
         return response
 
@@ -111,7 +112,7 @@ def register_api_routes(app, db):
             return jsonify(error='로그인이 필요합니다.'), 401
         if not current_user.is_admin:
             return jsonify(error='관리자만 사용할 수 있습니다.'), 403
-        return jsonify(error='검증된 지역 집계가 준비되기 전까지 지도 점수 갱신을 중지했습니다.'), 409
+        return jsonify(error='지도 지표는 서버의 실거래 수집 작업에서만 갱신합니다.'), 409
 
     def property_payload(prop):
         fields = ('name', 'price', 'price_raw', 'address', 'area', 'floor', 'build_year',
