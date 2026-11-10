@@ -6,6 +6,7 @@ const scannerBaseUrl = typeof SAFEHOME_CONFIG !== 'undefined' ? SAFEHOME_CONFIG.
 let currentFilter = 'all';
 let regions = [];
 let regionPopup;
+let mapSearch;
 
 const unknownMapIndicator = { category: 'unknown', text: '판단 불가', color: '#6b7280' };
 const mapUnavailableReasons = {
@@ -69,8 +70,7 @@ function setupEventListeners() {
     if (clearBtn) {
         clearBtn.onclick = function() {
             document.getElementById('address-search').value = '';
-            // 실거래 원 제거
-            clearRealTransactionCircles();
+            resetMapSearch();
             // 지도 초기화 (전역 map 사용)
             const globalMap = window.map || map;
             if (globalMap) {
@@ -96,29 +96,9 @@ function setupEventListeners() {
         };
     }
 
-    // 지도 페이지의 오른쪽 사이드 패널을 제어하도록 toggleRightSidebar 오버라이드
     if (typeof window.toggleRightSidebar === 'function') {
-        const originalToggleRightSidebar = window.toggleRightSidebar;
-        window.toggleRightSidebar = function() {
-            const rightSidebar = document.getElementById('right-sidebar');
-            if (rightSidebar) {
-                // 지도 페이지의 right-sidebar 토글 (원래 함수와 동일한 로직 사용)
-                const isActive = rightSidebar.classList.contains('active');
-                rightSidebar.classList.toggle('active');
-                rightSidebar.classList.toggle('hidden');
-                
-                // CSS transform과 visibility 직접 설정
-                if (rightSidebar.classList.contains('active')) {
-                    rightSidebar.style.transform = 'translateX(0)';
-                    rightSidebar.style.visibility = 'visible';
-                } else {
-                    rightSidebar.style.transform = 'translateX(100%)';
-                    rightSidebar.style.visibility = 'hidden';
-                }
-            } else {
-                // 다른 페이지에서는 원래 함수 실행
-                originalToggleRightSidebar();
-            }
+        window.toggleRightSidebar = () => {
+            setRightSidebarOpen(!document.getElementById('right-sidebar').classList.contains('active'));
         };
     }
 
@@ -223,8 +203,8 @@ function initMap() {
 }
 
 function selectMapRegion(region, position) {
-    window.currentSearchAbortController?.abort();
-    clearRealTransactionCircles();
+    resetMapSearch();
+    setRightSidebarOpen(false);
     if (window.matchMedia('(max-width: 960px)').matches) {
         const panel = document.getElementById('side-panel');
         panel.classList.remove('active');
@@ -263,7 +243,7 @@ function selectMapRegion(region, position) {
     content.addEventListener('keydown', event => {
         if (event.key === 'Escape') close.click();
     });
-    content.querySelector('.map-popup-search').onclick = () => loadRealTransactionsForMap(region, position, true);
+    content.querySelector('.map-popup-search').href = propertyResultsUrl(region);
     regionPopup = new kakao.maps.CustomOverlay({ map, position, content, clickable: true, yAnchor: 1, zIndex: 10 });
     map.panBy(0, -126);
     close.focus({ preventScroll: true });
@@ -291,6 +271,11 @@ function loadFavorites() {
 }
 
 function updateFavoriteButtons() {
+    const resultButton = document.getElementById('map-results-favorite');
+    const selected = favoriteRegions.has(resultButton.dataset.region);
+    resultButton.textContent = selected ? '⭐' : '☆';
+    resultButton.title = selected ? '즐겨찾기 해제' : '즐겨찾기 추가';
+    resultButton.setAttribute('aria-label', resultButton.title);
     favoriteRegions.forEach(region => {
         const favoriteId = `favorite-${region.replace(/\s/g, '-')}`;
         const btn = document.getElementById(favoriteId);
@@ -457,35 +442,8 @@ function searchAddress() {
         return;
     }
     
-    // 기존 실거래 원 제거 및 이전 검색 결과 초기화
-    clearRealTransactionCircles();
-    
-    // 진행 중인 모든 검색 요청 취소
-    if (window.currentSearchAbortController) {
-        window.currentSearchAbortController.abort();
-        window.currentSearchAbortController = null;
-    }
-    
-    // 모든 활성 검색 요청 취소
-    if (window.activeSearchControllers) {
-        window.activeSearchControllers.forEach(controller => {
-            try {
-                controller.abort();
-            } catch (e) {
-                // 이미 취소된 경우 무시
-            }
-        });
-        window.activeSearchControllers = [];
-    }
-    
-    // 진행 중인 모든 검색 요청 취소 플래그 제거
-    Object.keys(window).forEach(key => {
-        if (key.startsWith('search_')) {
-            delete window[key];
-        }
-    });
-    
-    
+    resetMapSearch();
+
     // 지역명 정규화 (검색어와 정규화된 버전 모두 시도)
     const normalizedKeyword = normalizeRegionName(searchKeyword);
     
@@ -522,187 +480,85 @@ function searchAddress() {
         }
     }
     
-    // 지역을 찾았으면 지도 이동 및 검색
-    if (targetRegion && targetRegion.circle) {
-        const position = targetRegion.circle.getPosition();
-        globalMap.setCenter(position);
+    const controller = new AbortController();
+    mapSearch = controller;
+    if (targetRegion) {
+        globalMap.setCenter(targetRegion.circle.getPosition());
         globalMap.setLevel(5);
-        
-        // 실거래 데이터 로드 (자동으로 InfoWindow 표시)
-        loadRealTransactionsForMap(targetRegion.data.region, position, true, false);
+        loadMapProperties(targetRegion.data.region, controller.signal);
     } else {
-        // 주소 검색 API 사용
         const geocoder = new kakao.maps.services.Geocoder();
-        geocoder.addressSearch(searchKeyword, function(result, status) {
+        geocoder.addressSearch(searchKeyword, (result, status) => {
+            if (controller.signal.aborted) return;
             if (status === kakao.maps.services.Status.OK) {
-                const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
-                globalMap.setCenter(coords);
+                globalMap.setCenter(new kakao.maps.LatLng(result[0].y, result[0].x));
                 globalMap.setLevel(5);
-                
-                // 정규화된 키워드로 검색
-                loadRealTransactionsForMap(normalizedKeyword || searchKeyword, coords, true, false);
+                loadMapProperties(normalizedKeyword, controller.signal);
             } else {
-                // 주소 검색 실패 시에도 검색 결과가 없다는 팝업
-                alert(`'${searchKeyword}' 지역의 검색 결과가 없습니다.\n\n정확한 동 이름(예: 청담동, 역삼동)을 입력해주세요.`);
+                alert(`'${searchKeyword}' 지역을 찾을 수 없습니다. 정확한 동 이름을 입력해 주세요.`);
             }
         });
     }
 }
 
-// 3. 실제 데이터(매물 분석 결과) 가져오기
-function loadRealTransactionsForMap(region, coords, autoOpenInfoWindow = true, showAlert = false) {
-    const globalMap = window.map || map;
-    
-    // 지역명이 없거나 잘못된 경우 에러 처리
-    if (!region || region.trim() === '') {
-        console.error('[검색] 지역명이 없습니다.');
-        if (showAlert) {
-            alert('지역명이 올바르지 않습니다.');
-        }
-        return;
-    }
-    
-    // 지역명 정리 (앞뒤 공백 제거)
-    const cleanRegion = region.trim();
-    
-    // 중복 호출 방지: 같은 지역에 대한 동시 요청 방지
-    const requestKey = `search_${cleanRegion}`;
-    if (window[requestKey]) {
-        return; // 이미 진행 중인 요청이 있으면 중복 호출 방지
-    }
+function propertyResultsUrl(region) {
+    return `${scannerBaseUrl}?region=${encodeURIComponent(region)}#search-result`;
+}
+
+function setRightSidebarOpen(open) {
+    const sidebar = document.getElementById('right-sidebar');
+    sidebar.classList.toggle('active', open);
+    sidebar.classList.toggle('hidden', !open);
+    sidebar.style.visibility = open ? 'visible' : 'hidden';
+}
+
+function resetMapSearch() {
+    mapSearch?.abort();
+    mapSearch = null;
     closeRegionPopup();
-    
-    // 이전 검색 요청 취소 (다른 지역 검색 시)
-    if (window.currentSearchAbortController) {
-        window.currentSearchAbortController.abort();
+    document.getElementById('map-results-title').textContent = '실거래가 조회';
+    document.getElementById('real-tx-results').textContent = '지역을 검색하면 매물이 표시됩니다.';
+    document.getElementById('map-results-favorite').hidden = true;
+    document.getElementById('map-results-all').hidden = true;
+}
+
+async function loadMapProperties(region, signal) {
+    const results = document.getElementById('real-tx-results');
+    const favorite = document.getElementById('map-results-favorite');
+    const all = document.getElementById('map-results-all');
+    document.getElementById('map-results-title').textContent = `${region} 매물`;
+    results.textContent = '매물을 불러오는 중입니다.';
+    setRightSidebarOpen(true);
+    if (window.matchMedia('(max-width: 960px)').matches) {
+        const panel = document.getElementById('side-panel');
+        panel.classList.remove('active');
+        panel.classList.add('hidden');
     }
-    
-    // 진행 중인 모든 검색 요청 취소 (다른 지역 검색 방지)
-    if (!window.activeSearchControllers) {
-        window.activeSearchControllers = [];
-    }
-    window.activeSearchControllers.forEach(controller => {
-        if (controller && controller !== window.currentSearchAbortController) {
-            try {
-                controller.abort();
-            } catch (e) {
-                // 이미 취소된 경우 무시
-            }
+    document.getElementById('right-sidebar').scrollTop = 0;
+
+    try {
+        const response = await fetch(`/analyze?region=${encodeURIComponent(region)}`, { signal });
+        if (!response.ok) throw new Error(`매물 조회 실패 (${response.status})`);
+        const { properties } = await response.json();
+        if (signal.aborted) return;
+        if (!Array.isArray(properties)) throw new Error('매물 응답 형식 오류');
+        if (!properties.length) {
+            results.textContent = '조회된 매물이 없습니다.';
+            return;
         }
-    });
-    window.activeSearchControllers = [];
-    
-    // 새로운 AbortController 생성
-    const abortController = new AbortController();
-    window.currentSearchAbortController = abortController;
-    window.activeSearchControllers.push(abortController);
-    window[requestKey] = true;
-    
-    // 즉시 로딩 중 InfoWindow 표시 (속도 개선)
-    if (autoOpenInfoWindow && globalMap) {
-        const loadingContent = `
-            <div style="padding:15px; min-width:220px; font-size:13px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <h4 style="margin:0;">${cleanRegion} 분석 중...</h4>
-                </div>
-                <div style="text-align:center; padding:20px;">
-                    <div style="display:inline-block; width:20px; height:20px; border:3px solid #f3f3f3; border-top:3px solid #1565c0; border-radius:50%; animation:spin 1s linear infinite;"></div>
-                    <p style="margin-top:10px; color:#666;">데이터를 불러오는 중입니다...</p>
-                </div>
-            </div>
-            <style>
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            </style>
-        `;
-        
-        // 기존 InfoWindow 닫기
-        if (window.realTxInfoWindow) {
-            window.realTxInfoWindow.close();
-        }
-        
-        const loadingInfoWindow = new kakao.maps.InfoWindow({
-            position: coords,
-            content: loadingContent,
-            removable: true
-        });
-        loadingInfoWindow.open(globalMap);
-        window.realTxInfoWindow = loadingInfoWindow;
+        updateRealTransactionResults(properties);
+        favorite.dataset.region = region;
+        favorite.onclick = () => toggleFavorite(region, favorite.id);
+        favorite.hidden = false;
+        updateFavoriteButtons();
+        all.href = propertyResultsUrl(region);
+        all.hidden = false;
+        saveSearchHistory(region);
+    } catch (error) {
+        if (signal.aborted) return;
+        results.textContent = '매물을 불러오지 못했습니다. 다시 검색해 주세요.';
+        console.error(error);
     }
-    
-    // /analyze API 호출 (전세가율 포함) - 정리된 지역명 사용
-    // AbortSignal을 사용하여 요청 취소 가능하도록 함
-    fetch(`/analyze?region=${encodeURIComponent(cleanRegion)}`, {
-        signal: abortController.signal
-    })
-        .then(res => {
-            if (!res.ok) {
-                console.error(`[검색] API 응답 실패: ${res.status}`);
-                return { properties: [] };
-            }
-            return res.json();
-        })
-        .then(data => {
-            if (abortController.signal.aborted) return;
-            // 에러 응답 확인
-            if (data.error) {
-                console.error(`[검색] API 에러: ${data.error}`);
-                if (window.realTxInfoWindow) {
-                    window.realTxInfoWindow.close();
-                    window.realTxInfoWindow = null;
-                }
-                if (showAlert) {
-                    alert(`검색 중 오류가 발생했습니다: ${data.error}`);
-                }
-                return;
-            }
-            
-            const properties = data.properties || [];
-            console.log(`[검색] ${cleanRegion} 검색 결과: ${properties.length}건`);
-            
-            if (properties.length > 0) {
-                // 검색 위치와 개별 매물 결과를 표시합니다.
-                // 중요: 정리된 지역명을 사용하여 정보창에 올바른 지역명 표시
-                displayRealTransactionCircles(cleanRegion, properties, coords, autoOpenInfoWindow);
-                updateRealTransactionResults(cleanRegion, properties);
-                
-                saveSearchHistory(cleanRegion);
-            } else {
-                // 데이터가 없으면 로딩 InfoWindow 닫기
-                if (window.realTxInfoWindow) {
-                    window.realTxInfoWindow.close();
-                    window.realTxInfoWindow = null;
-                }
-                
-                // 데이터가 없으면 아무것도 표시하지 않음 (검색 기록도 저장하지 않음)
-                if (showAlert) {
-                    alert(`'${region}' 지역의 검색 결과가 없습니다.\n\n정확한 동 이름(예: 청담동, 역삼동)을 입력해주세요.`);
-                }
-            }
-        })
-        .catch((error) => {
-            // AbortError는 정상적인 취소이므로 에러로 처리하지 않음
-            if (error.name === 'AbortError') {
-                return;
-            }
-            
-            // 에러 시 로딩 InfoWindow 닫기
-            if (window.realTxInfoWindow) {
-                window.realTxInfoWindow.close();
-                window.realTxInfoWindow = null;
-            }
-            console.error('실거래 데이터를 불러오는데 실패했습니다:', error);
-        })
-        .finally(() => {
-            // 요청 완료 후 플래그 제거 (성공/실패 관계없이)
-            delete window[requestKey];
-            // 현재 요청이 완료된 경우에만 AbortController 제거
-            if (window.currentSearchAbortController === abortController) {
-                window.currentSearchAbortController = null;
-            }
-        });
 }
 
 // 검색 기록은 위치만 저장합니다.
@@ -737,152 +593,9 @@ function saveSearchHistory(region) {
     });
 }
 
-// 검색 결과의 위치를 표시하고, 개별 전세가율은 결과 목록에서 확인합니다.
-function displayRealTransactionCircles(region, properties, centerCoords, autoOpenInfoWindow = true) {
-    const globalMap = window.map || map;
-    const globalRegionData = window.regionData || regionData;
-    if (!globalMap) return;
-
-    for (const circle of window.realTxCircles || []) circle.setMap(null);
-    window.realTxCircles = [];
-    const { color, text: statusText } = unknownMapIndicator;
-    const circle = new kakao.maps.Circle({
-        center: centerCoords,
-        radius: 350, // 동 넓이에 맞게 조정 (검색 결과는 조금 더 작고 진하게 표시)
-        fillColor: color,
-        fillOpacity: 0.7, 
-        strokeWeight: 2,
-        strokeColor: '#fff'
-    });
-    circle.setMap(currentFilter === 'all' || currentFilter === 'unknown' ? globalMap : null);
-    
-    // 전역 변수에 저장 (나중에 지우기 위해)
-    if (!window.realTxCircles) window.realTxCircles = [];
-    window.realTxCircles.push(circle);
-
-    // (4) 정보창(InfoWindow) 내용 생성 (즐겨찾기 버튼 포함)
-    const favoriteId = `favorite-tx-${region.replace(/\s/g, '-')}`;
-    const isFavorite = favoriteRegions.has(region);
-    const favoriteIcon = isFavorite ? '⭐' : '☆';
-    const favoriteColor = isFavorite ? '#ffc107' : '#ccc';
-    
-    const content = `
-        <div style="padding:15px; min-width:220px; font-size:13px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <h4 style="margin:0;">${region} 분석 결과</h4>
-                <button id="${favoriteId}" onclick="toggleFavorite('${region}', '${favoriteId}')" 
-                        style="background:none; border:none; font-size:20px; cursor:pointer; padding:0; line-height:1; color:${favoriteColor};"
-                        title="${isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
-                    ${favoriteIcon}
-                </button>
-            </div>
-            <div style="margin-bottom:5px;">
-                <span style="font-weight:bold; color:${color}">● ${statusText}</span>
-            </div>
-            <div style="color:#666; margin-bottom:10px;">
-                조회 매물 수: ${properties.length}건<br>
-                개별 참고 전세가율은 실거래가 조회 목록에서 확인하세요.
-            </div>
-            <div style="display:flex; gap:6px;">
-            <a href="${scannerBaseUrl}?region=${encodeURIComponent(region)}" 
-                   style="flex:1; background:#1565c0; color:white; text-align:center; padding:6px; text-decoration:none; border-radius:4px; font-size:12px;">
-                   매물 분석
-            </a>
-                <button onclick="searchAddressFromFavorite('${region}')" 
-                        style="flex:1; background:#28a745; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:12px;">
-                    지도 이동
-                </button>
-            </div>
-        </div>
-    `;
-
-    const infowindow = new kakao.maps.InfoWindow({
-        position: centerCoords,
-        content: content,
-        removable: true
-    });
-    
-    // 원 클릭 시 정보창 열기 (검색 결과 InfoWindow)
-    kakao.maps.event.addListener(circle, 'click', function() {
-        // 기존 정보창 모두 닫기
-        Object.values(globalRegionData).forEach(d => {
-            if (d.infowindow) d.infowindow.close();
-        });
-        if (window.realTxInfoWindow) {
-            window.realTxInfoWindow.close();
-        }
-        // 검색 결과 InfoWindow 즉시 표시
-        infowindow.setPosition(centerCoords);
-        infowindow.open(globalMap);
-        window.realTxInfoWindow = infowindow;
-        
-        // 정보창이 열린 후 즐겨찾기 버튼 업데이트
-        updateFavoriteButtonInInfoWindow(region);
-    });
-    
-    // 검색 후 바로 정보창 띄우기 (autoOpenInfoWindow가 true일 때만)
-    // 로딩 InfoWindow가 이미 열려있으면 닫고 실제 데이터 InfoWindow로 교체
-    if (autoOpenInfoWindow) {
-        // 기존 로딩 InfoWindow 닫기
-        if (window.realTxInfoWindow) {
-            window.realTxInfoWindow.close();
-        }
-        
-        // 실제 데이터 InfoWindow 열기
-        infowindow.open(globalMap);
-        window.realTxInfoWindow = infowindow;
-        
-        // 정보창이 열린 후 즐겨찾기 버튼 업데이트
-        updateFavoriteButtonInInfoWindow(region);
-    }
-    
-    // 즐겨찾기 버튼 업데이트 헬퍼 함수
-    function updateFavoriteButtonInInfoWindow(region) {
-        setTimeout(() => {
-            const favoriteId = `favorite-tx-${region.replace(/\s/g, '-')}`;
-            const btn = document.getElementById(favoriteId);
-            if (btn) {
-                const isFavorite = favoriteRegions.has(region);
-                btn.textContent = isFavorite ? '⭐' : '☆';
-                btn.style.color = isFavorite ? '#ffc107' : '#ccc';
-                btn.title = isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가';
-            }
-        }, 50);
-    }
-}
-
-// 실거래 원 제거 및 기존 원 복원
-function clearRealTransactionCircles() {
-    closeRegionPopup();
-    // 실거래 원 제거
-    if (window.realTxCircles) {
-        window.realTxCircles.forEach(circle => circle.setMap(null));
-        window.realTxCircles = [];
-    }
-    
-    // 정보창 닫기
-    if (window.realTxInfoWindow) {
-        window.realTxInfoWindow.close();
-        window.realTxInfoWindow = null;
-    }
-    
-    // 실거래가 조회 결과 영역 초기화 (이전 검색 결과 제거)
-    const resultsDiv = document.getElementById('real-tx-results');
-    if (resultsDiv) {
-        resultsDiv.innerHTML = '<div style="color: #999; font-size: 13px; text-align: center; padding: 20px;">지역을 조회하세요</div>';
-    }
-}
-
-// ============================================
-// UI 업데이트 함수
-// ============================================
-
 function filterMapCircles() {
     for (const { circle, category } of Object.values(regionData)) {
         circle.setMap(currentFilter === 'all' || category === currentFilter ? map : null);
-    }
-    for (const circle of window.realTxCircles || []) {
-        circle.setMap(currentFilter === 'all' || currentFilter === 'unknown' ? map : null);
     }
 }
 
@@ -925,7 +638,7 @@ function updateStats() {
 }
 
 // 사이드바 실거래 결과 업데이트
-function updateRealTransactionResults(region, properties) {
+function updateRealTransactionResults(properties) {
     const resultsDiv = document.getElementById('real-tx-results');
     if (!resultsDiv) return;
     
@@ -958,12 +671,6 @@ function updateRealTransactionResults(region, properties) {
     }).join('');
     
     resultsDiv.innerHTML = html;
-    
-    // 검색 입력창에도 자동 입력
-    const realTxInput = document.getElementById('real-tx-region');
-    if (realTxInput) {
-        realTxInput.value = region;
-    }
 }
 
 // ============================================

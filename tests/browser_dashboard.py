@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -131,17 +131,35 @@ try:
         expect(gray_popup).to_have_count(0)
 
         def map_search_response(route):
-            assert parse_qs(urlsplit(route.request.url).query)['region'] == ['강남구 삼성동']
-            route.fulfill(json={'properties': [{'name': '비교 가능한 아파트', 'jeonse_rate': 72}]})
+            region, = parse_qs(urlsplit(route.request.url).query)['region']
+            assert region in {'등촌동', '강남구 삼성동'}
+            route.fulfill(json={'properties': [{
+                'name': f'{region} 아파트', 'address': f'{region} 123', 'price': '8억',
+                'jeonse_price': '5.76억', 'jeonse_rate': 72, 'comparison_sample_count': 4,
+            }]})
 
         page.route('**/analyze?*', map_search_response)
-        page.evaluate("window.regionData['강남구 삼성동'].circle.click()")
-        popup.get_by_role('button', name='개별 매물 조회').click()
-        expect(popup).to_have_count(0)
-        expect(page.locator('.map-fixture-popup')).to_contain_text('판단 불가')
-        expect(page.locator('#real-tx-results')).to_contain_text('72%')
+        page.route('**/api/real-transactions?*', lambda route: route.fulfill(json={'transactions': []}))
+        page.evaluate("window.regionData['등촌동'].circle.click()")
+        deungchon_popup = page.get_by_role('dialog', name='등촌동')
+        deungchon_popup.get_by_role('link', name='개별 매물 조회').click()
+        expect(page).to_have_url(f'{url}/searchscan?region={quote("등촌동")}#search-result')
+        expect(deungchon_popup).to_have_count(0)
+        property_card = page.locator('#search-result .property-item')
+        expect(property_card).to_contain_text('등촌동 아파트')
+        expect(property_card).to_contain_text('72%')
+        expect(property_card).to_be_in_viewport()
+
+        page.goto(url + '/map', wait_until='domcontentloaded')
         expect(page.locator('#unknown-count')).to_have_text(str(count))
-        assert page.evaluate("window.__mapCircles.at(-1).options.fillColor === '#6b7280'")
+        page.locator('#address-search').fill('강남구 삼성동')
+        page.locator('#search-btn').click()
+        expect(page.locator('#right-sidebar')).to_have_class('active')
+        expect(page.locator('#real-tx-results')).to_contain_text('72%')
+        expect(page.get_by_role('button', name='즐겨찾기 추가')).to_be_visible()
+        expect(page.locator('.map-fixture-popup')).to_have_count(0)
+        expect(page.locator('#unknown-count')).to_have_text(str(count))
+        assert page.evaluate('window.__mapCircles.length') == count + 1
         assert not errors, errors
         page.close()
         browser.close()

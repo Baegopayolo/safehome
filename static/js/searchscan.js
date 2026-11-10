@@ -143,6 +143,7 @@ function handleSearchResult(region, props, resultDiv, isAdvanced = false) {
     
     // 즉시 결과 렌더링 (사용자 경험 개선)
     renderResults(region, props, resultDiv);
+    if (window.location.hash === '#search-result') resultDiv.scrollIntoView();
     
     // 비동기 작업들은 백그라운드에서 처리 (블로킹 없음)
     // 검색 히스토리 저장 (비동기, 즉시 실행) - 전세가율 계산 후 저장
@@ -926,6 +927,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const regionParam = urlParams.get('region');
     if (regionParam) {
+        if (window.location.hash === '#search-result') {
+            const results = document.getElementById('search-result');
+            document.querySelector('.real-transactions-section').before(results);
+        }
         document.getElementById('region-input').value = regionParam;
         searchRegion();
     }

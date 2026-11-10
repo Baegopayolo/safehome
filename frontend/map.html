@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 지역별 참고 전세가율</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-4') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-5') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
@@ -50,6 +50,14 @@
             <div class="panel-header">
                 <h2 style="margin:0;font-size:18px">📊 추가 정보</h2>
             </div>
+            <section class="sidebar-section">
+                <div class="map-results-header">
+                    <h3 id="map-results-title">실거래가 조회</h3>
+                    <button id="map-results-favorite" type="button" hidden>☆</button>
+                </div>
+                <div id="real-tx-results" aria-live="polite">지역을 검색하면 매물이 표시됩니다.</div>
+                <a id="map-results-all" hidden>전체 매물 확인 →</a>
+            </section>
             <div class="sidebar-section">
                 <h3>⭐ 즐겨찾기</h3>
                 <div id="favorite-sidebar">
@@ -61,14 +69,6 @@
                 <div id="recent-searches">
                     <div style="color:#999;font-size:13px;text-align:center;padding:20px">로딩 중...</div>
                 </div>
-            </div>
-        <div class="sidebar-section">
-            <h3>💰 실거래가 조회</h3>
-            <div class="real-transaction-search">
-                    <input type="text" id="real-tx-region" placeholder="검색 결과를 확인하세요." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px"></div>
-                <div id="real-tx-results" style="margin-top:12px;max-height:300px;overflow-y:auto">
-                    <div style="color:#999;font-size:13px;text-align:center;padding:20px">지역을 조회하세요</div>
-            </div>
             </div>
         <div class="sidebar-section">
             <h3>🔗 빠른 링크</h3>
@@ -161,14 +161,14 @@
                         <div><dt>마지막 정상 갱신</dt><dd data-field="updated"></dd></div>
                     </dl>
                 </div>
-                <button class="map-popup-search" type="button">개별 매물 조회 <span aria-hidden="true">→</span></button>
+                <a class="map-popup-search" href="{{ url_for('searchscan_page') }}">개별 매물 조회 <span aria-hidden="true">→</span></a>
             </div>
         </div>
     </template>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-4') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-5') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>
