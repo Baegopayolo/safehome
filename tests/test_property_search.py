@@ -56,6 +56,27 @@ class PropertyTests(unittest.TestCase):
             from app import app
         cls.app = app
 
+    def test_every_map_location_searches_its_exact_legal_dong(self):
+        locations = utils.get_heatmap_data()
+        self.assertEqual(len(locations), 52)
+        for location in locations:
+            with self.subTest(region=location['region']):
+                search = location['analysis_region']
+                self.assertEqual(utils._resolve_lawd_cd(search, None), location['region_code'])
+                own = {'법정동': location['dong']}
+                self.assertEqual(utils.filter_transactions_by_region([own, {'법정동': '회귀테스트동'}], search), [own])
+        self.assertIsNone(utils._resolve_lawd_cd('신사동', None))
+        self.assertEqual(utils._resolve_lawd_cd('은평구 신사동', None), '11380')
+        self.assertEqual(utils._resolve_lawd_cd('성내동', None), '11740')
+
+    def test_advanced_search_treats_legacy_property_type_as_apartment_only(self):
+        client = self.app.test_client()
+        with patch('routes.api.fetch_properties_by_region', return_value=[{'name': '테스트빌라'}]):
+            apartment = client.get('/api/advanced-search', query_string={'region': '역삼동', 'property_type': '아파트'})
+            villa = client.get('/api/advanced-search', query_string={'region': '역삼동', 'property_type': '빌라'})
+        self.assertEqual(apartment.json['properties'][0]['name'], '테스트빌라')
+        self.assertEqual(villa.json['properties'], [])
+
     def test_mypage_favorites_use_verified_map_indicators(self):
         from app import db, Favorite, HeatmapData, User
 

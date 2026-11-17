@@ -214,7 +214,6 @@ function advancedSearch() {
     const region = document.getElementById('region-input').value.trim();
     const minPrice = document.getElementById('min-price').value;
     const maxPrice = document.getElementById('max-price').value;
-    const propertyType = document.getElementById('property-type').value;
     const riskLevel = document.getElementById('risk-level').value;
     
     if (!region) {
@@ -233,7 +232,7 @@ function advancedSearch() {
     
     const params = new URLSearchParams({
         region, min_price: minPrice, max_price: maxPrice,
-        property_type: propertyType, risk_level: riskLevel
+        risk_level: riskLevel
     });
     
     const resultDiv = document.getElementById('search-result');
@@ -448,7 +447,9 @@ function renderResults(region, props, container, period) {
             const property = pageProperties[index];
             const name = property.name || `매물 #${index + 1}`;
             const address = property.address || '';
-            const regionName = address.match(/([가-힣]+동|[가-힣]+가|[가-힣]+리)/)?.[1] || region;
+            const dong = address.match(/(?:^|\s)([가-힣0-9]+[동가리])(?=\s|$)/)?.[1];
+            const regionName = dong === '신사동' ? (address.match(/^[가-힣]+구 신사동(?=\s|$)/)?.[0] || region)
+                : dong || region;
             const favorite = card.querySelector('[data-favorite-region]');
             favorite.dataset.favoriteRegion = regionName;
             favorite.onclick = () => toggleFavoriteRegion(regionName, favorite.id);
@@ -584,12 +585,23 @@ function changeMonthRange() {
 }
 
 // 매물 비교 기능
+function comparisonTradeKey(property) {
+    return JSON.stringify([property.name, property.address, property.deal_date,
+        property.area, property.floor, property.price_raw ?? property.price]);
+}
+
+function comparisonSalePrice(property) {
+    return Number.isFinite(property.price_raw)
+        ? `${property.price_raw.toLocaleString('ko-KR')}만 원` : property.price || '정보 없음';
+}
+
 function addToComparison(property) {
     if (comparisonProperties.length >= 5) {
         alert('최대 5개까지만 비교할 수 있습니다.');
         return;
     }
-    if (!comparisonProperties.find(p => p.name === property.name && p.address === property.address)) {
+    const key = comparisonTradeKey(property);
+    if (!comparisonProperties.some(item => comparisonTradeKey(item) === key)) {
         comparisonProperties.push(property);
         updateComparisonUI();
         showComparisonToast(`${property.name || '매물'}이(가) 비교 목록에 추가되었습니다.`);
@@ -637,7 +649,7 @@ function updateComparisonList() {
     
     listContainer.innerHTML = comparisonProperties.map((prop, idx) => `
         <div class="comparison-item">
-            <span class="comparison-item-name">${escapePropertyText(prop.name || '매물명 없음')}</span>
+            <span class="comparison-item-name">${escapePropertyText(prop.name || '매물명 없음')}${prop.deal_date ? ` · ${escapePropertyText(prop.deal_date)}` : ''}</span>
             <button class="comparison-remove" onclick="removeFromComparison(${idx})" title="제거">×</button>
         </div>
     `).join('');
@@ -662,15 +674,6 @@ function generateComparisonModal() {
         if (score >= 80) return { level: '높음', class: 'risk-danger', color: '#dc3545' };
         if (score >= 60) return { level: '주의', class: 'risk-warning', color: '#ffc107' };
         return { level: '낮음', class: 'risk-safe', color: '#28a745' };
-    };
-    
-    const formatPrice = (price) => {
-        if (!price) return '정보 없음';
-        if (typeof price === 'number') {
-            if (price >= 10000) return `${(price / 10000).toFixed(1)}억원`;
-            return `${price}만원`;
-        }
-        return price;
     };
     
     return `
@@ -720,8 +723,12 @@ function generateComparisonModal() {
                                 ${comparisonProperties.map(p => `<td>${escapePropertyText(p.address || '정보 없음')}</td>`).join('')}
                             </tr>
                             <tr>
+                                <td class="comparison-label">계약일</td>
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(p.deal_date || '정보 없음')}</td>`).join('')}
+                            </tr>
+                            <tr>
                                 <td class="comparison-label">매매가</td>
-                                ${comparisonProperties.map(p => `<td>${escapePropertyText(formatPrice(p.price))}</td>`).join('')}
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(comparisonSalePrice(p))}</td>`).join('')}
                             </tr>
                             <tr>
                                 <td class="comparison-label">전세가</td>
@@ -806,20 +813,25 @@ function clearComparison() {
 }
 
 function exportComparison() {
+    if (!comparisonProperties.length) return;
     const data = comparisonProperties.map(p => ({
         매물명: p.name,
         주소: p.address,
-        매매가: p.price,
+        계약일: p.deal_date,
+        매매가: comparisonSalePrice(p),
         전세가: p.jeonse_price,
         전세가율: p.jeonse_rate,
         참고전세가율구간: p.risk_level === 'unknown' ? '판단 불가' : p.risk_level,
         경고수: p.warnings?.length || 0
     }));
     
-    const csv = [
-        Object.keys(data[0]).join(','),
-        ...data.map(row => Object.values(row).join(','))
-    ].join('\n');
+    const csvCell = value => {
+        let text = String(value ?? '');
+        if (typeof value === 'string' && /^[\s\uFEFF]*[=+@-]/.test(text)) text = "'" + text;
+        return `"${text.replaceAll('"', '""')}"`;
+    };
+    const csv = [Object.keys(data[0]), ...data.map(Object.values)]
+        .map(row => row.map(csvCell).join(',')).join('\r\n');
     
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -848,7 +860,6 @@ function toggleAdvancedSearch() {
 function resetAdvancedSearch() {
     document.getElementById('min-price').value = '';
     document.getElementById('max-price').value = '';
-    document.getElementById('property-type').value = '';
     document.getElementById('risk-level').value = '';
 }
 

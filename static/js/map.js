@@ -241,7 +241,7 @@ function selectMapRegion(region, position) {
         : mapUnavailableReasons[data.reason] || '비교 가능한 매매를 기준으로 계산한 참고 지표입니다.';
     field('period').textContent = data.period
         ? `${data.period.from.replaceAll('-', '.')} – ${data.period.to.replaceAll('-', '.')}` : '—';
-    field('scope-row').hidden = !data.analysis_region;
+    field('scope-row').hidden = !data.analysis_region || region === data.dong || region === data.analysis_region;
     field('scope').textContent = data.analysis_region || '';
     const updated = Date.parse(data.last_updated);
     field('updated').textContent = Number.isFinite(updated) ? `${mapUpdateFormat.format(updated)} KST` : '—';
@@ -463,10 +463,13 @@ function searchAddress() {
     
     // 지역 데이터에서 먼저 찾기 (정확한 매칭 우선)
     let targetRegion = globalRegionData[searchKeyword] || globalRegionData[normalizedKeyword];
+    targetRegion ??= Object.values(globalRegionData).find(({data}) => data.analysis_region === normalizedKeyword);
     
     // 정확한 매칭이 없으면 부분 매칭 시도
     if (!targetRegion) {
+        const district = searchKeyword.match(/(?:^|\s)([가-힣]+구)(?=\s|$)/)?.[1];
         const matchedKeys = Object.keys(globalRegionData).filter(key => {
+            if (district && !globalRegionData[key].data.analysis_region?.startsWith(`${district} `)) return false;
             const keyClean = key.replace(/동|가|리/g, '').trim();
             const searchClean = searchKeyword.replace(/동|가|리/g, '').trim();
             const normalizedClean = normalizedKeyword.replace(/동|가|리/g, '').trim();

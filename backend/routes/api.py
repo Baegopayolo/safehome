@@ -196,7 +196,7 @@ def register_api_routes(app, db):
                             continue
                 except (ValueError, TypeError):
                     pass
-            if property_type and property_type not in prop.get('name', ''):
+            if property_type and property_type != '아파트':
                 continue
             if risk_level and prop.get('risk_level') != risk_level:
                 continue

@@ -35,16 +35,6 @@
                         <input type="number" id="max-price" placeholder="예: 5">
                     </div>
                     <div class="filter-group">
-                        <label for="property-type">건물 유형</label>
-                        <select id="property-type">
-                            <option value="">전체</option>
-                            <option value="아파트">아파트</option>
-                            <option value="빌라">빌라</option>
-                            <option value="오피스텔">오피스텔</option>
-                            <option value="단독주택">단독주택</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
                         <label for="risk-level">참고 전세가율</label>
                         <select id="risk-level">
                             <option value="">전체</option>
@@ -171,7 +161,7 @@
             </div>
         </div>
     </main>
-    <script src="{{ url_for('static', filename='js/searchscan.js', v='sale-contract-period') }}"></script>
+    <script src="{{ url_for('static', filename='js/searchscan.js', v='trade-comparison-dates') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

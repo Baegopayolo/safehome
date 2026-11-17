@@ -80,9 +80,11 @@ def _resolve_lawd_cd(region: str, fallback: str = '11110') -> str:
     for gu, code in SEOUL_SIGUNGU_CODES.items():
         if gu in region:
             return code
+    if _extract_dong(region) == '신사동':
+        return None
     dong_to_gu = {
         '청담동': '강남구', '역삼동': '강남구', '삼성동': '강남구', '대치동': '강남구',
-        '압구정동': '강남구', '논현동': '강남구', '신사동': '강남구', '도곡동': '강남구',
+        '압구정동': '강남구', '논현동': '강남구', '도곡동': '강남구',
         '개포동': '강남구', '수서동': '강남구', '일원동': '강남구', '세곡동': '강남구',
         '화곡동': '강서구', '등촌동': '강서구', '마곡동': '강서구', '가양동': '강서구',
         '방화동': '강서구', '공항동': '강서구', '염창동': '강서구', '신정동': '강서구',
@@ -97,14 +99,14 @@ def _resolve_lawd_cd(region: str, fallback: str = '11110') -> str:
         '가락동': '송파구', '거여동': '송파구', '마천동': '송파구', '장지동': '송파구',
         '석촌동': '송파구', '오금동': '송파구', '송파동': '송파구', '잠실본동': '송파구',
         '명일동': '강동구', '고덕동': '강동구', '상일동': '강동구', '천호동': '강동구',
-        '길동': '강동구', '둔촌동': '강동구', '암사동': '강동구',
+        '길동': '강동구', '둔촌동': '강동구', '암사동': '강동구', '성내동': '강동구',
         '사직동': '종로구', '삼청동': '종로구', '혜화동': '종로구', '이화동': '종로구',
         '명륜동': '종로구', '와룡동': '종로구', '무악동': '종로구', '교남동': '종로구',
         '반포동': '서초구', '잠원동': '서초구', '방배동': '서초구', '양재동': '서초구',
         '내곡동': '서초구', '염곡동': '서초구', '서초동': '서초구',
         '미아동': '강북구', '번동': '강북구', '수유동': '강북구', '우이동': '강북구',
         '월계동': '노원구', '공릉동': '노원구', '하계동': '노원구', '중계동': '노원구', '상계동': '노원구',
-        '불광동': '은평구', '녹번동': '은평구', '응암동': '은평구', '신사동': '은평구',
+        '불광동': '은평구', '녹번동': '은평구', '응암동': '은평구',
         '역촌동': '은평구', '구산동': '은평구', '갈현동': '은평구',
         '이태원동': '용산구', '한남동': '용산구', '이촌동': '용산구',
         '왕십리동': '성동구', '성수동': '성동구', '행당동': '성동구',
@@ -324,8 +326,8 @@ def get_heatmap_data():
         # 관악구
         {'region': '신림동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'lat': 37.4842, 'lng': 126.9294},
         {'region': '봉천동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '봉천동', 'lat': 37.4833, 'lng': 126.9500},
-        {'region': '서원동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'analysis_region': '관악구 신림동', 'lat': 37.4767, 'lng': 126.9333},
-        {'region': '관악구 삼성동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'analysis_region': '관악구 신림동', 'lat': 37.4700, 'lng': 126.9300},
+        {'region': '서원동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'lat': 37.4767, 'lng': 126.9333},
+        {'region': '관악구 삼성동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'lat': 37.4700, 'lng': 126.9300},
         # 강동구
         {'region': '명일동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '명일동', 'lat': 37.5500, 'lng': 127.1436},
         {'region': '천호동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '천호동', 'lat': 37.5383, 'lng': 127.1233},
@@ -346,17 +348,19 @@ def get_heatmap_data():
         {'region': '한남동', 'region_code': SEOUL_SIGUNGU_CODES['용산구'], 'dong': '한남동', 'lat': 37.5333, 'lng': 127.0067},
         {'region': '이태원동', 'region_code': SEOUL_SIGUNGU_CODES['용산구'], 'dong': '이태원동', 'lat': 37.5342, 'lng': 126.9942},
         # 종로구
-        {'region': '종로동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': '서린동', 'analysis_region': '종로구 서린동', 'lat': 37.5700, 'lng': 126.9800},
+        {'region': '종로동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': '서린동', 'lat': 37.5700, 'lng': 126.9800},
         {'region': '혜화동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': '혜화동', 'lat': 37.5867, 'lng': 127.0000},
         # 중구
-        {'region': '명동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': '명동2가', 'analysis_region': '중구 명동2가', 'lat': 37.5633, 'lng': 126.9833},
-        {'region': '을지로동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': '을지로3가', 'analysis_region': '중구 을지로3가', 'lat': 37.5667, 'lng': 126.9900},
+        {'region': '명동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': '명동2가', 'lat': 37.5633, 'lng': 126.9833},
+        {'region': '을지로동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': '을지로3가', 'lat': 37.5667, 'lng': 126.9900},
         # 노원구
         {'region': '상계동', 'region_code': SEOUL_SIGUNGU_CODES['노원구'], 'dong': '상계동', 'lat': 37.6633, 'lng': 127.0733},
         {'region': '하계동', 'region_code': SEOUL_SIGUNGU_CODES['노원구'], 'dong': '하계동', 'lat': 37.6367, 'lng': 127.0700},
     ]
     
-    return [dict(region, score=None, status='unavailable') for region in default_regions]
+    districts = {code: name for name, code in SEOUL_SIGUNGU_CODES.items()}
+    return [dict(region, analysis_region=f"{districts[region['region_code']]} {region['dong']}",
+                 score=None, status='unavailable') for region in default_regions]
 
 def filter_transactions_by_region(transactions, region):
     match = re.search(r'[가-힣0-9]+[동가리](?=[\s,]|$)', region or '')
@@ -433,6 +437,8 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None, *, months=
         return []
     lawd_cd = _resolve_lawd_cd(region, fallback=None)
     if not lawd_cd:
+        if _extract_dong(region) == '신사동':
+            raise ValueError('강남구 신사동 또는 은평구 신사동을 입력하세요.')
         raise ValueError('지원하는 서울 자치구 또는 법정동을 입력하세요.')
     district = next(name for name, code in SEOUL_SIGUNGU_CODES.items() if code == lawd_cd)
     if months is None:

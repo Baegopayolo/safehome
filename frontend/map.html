@@ -169,7 +169,7 @@
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='verified-legal-dongs') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='qualified-map-search') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

@@ -1,4 +1,5 @@
 """Run with Playwright installed and SAFEHOME_APP_PYTHON pointing at the app venv."""
+import csv
 import os
 from pathlib import Path
 import subprocess
@@ -153,12 +154,15 @@ try:
 
         def map_search_response(route):
             region, = parse_qs(urlsplit(route.request.url).query)['region']
-            assert region in {'등촌동', '강남구 삼성동'}
-            route.fulfill(json={'period': {'from': '2026-06', 'to': '2026-11'}, 'properties': [{
+            assert region in {'강서구 등촌동', '강남구 삼성동'}
+            property_row = {
                 'name': f'{region} 아파트 {markup_text}', 'address': f'{region} 123', 'price': '8억',
-                'deal_date': '2026-10-12',
+                'deal_date': '2026-10-12', 'price_raw': 80000,
                 'jeonse_price': '5.76억', 'jeonse_rate': 72, 'comparison_sample_count': 4,
-            }]})
+            }
+            route.fulfill(json={'period': {'from': '2026-06', 'to': '2026-11'}, 'properties': [
+                property_row, dict(property_row, deal_date='2026-10-13'), dict(property_row, price_raw=80001),
+            ]})
 
         page.route('**/analyze?*', map_search_response)
         page.route('**/api/search-history', search_history_response)
@@ -167,12 +171,13 @@ try:
         page.evaluate("window.regionData['등촌동'].circle.click()")
         deungchon_popup = page.get_by_role('dialog', name='등촌동')
         deungchon_popup.get_by_role('link', name='개별 매물 조회').click()
-        expect(page).to_have_url(f'{url}/searchscan?region={quote("등촌동")}#search-result')
+        expect(page).to_have_url(f'{url}/searchscan?region={quote("강서구 등촌동")}#search-result')
         expect(deungchon_popup).to_have_count(0)
-        property_card = page.locator('#search-result .property-item')
+        cards = page.locator('#search-result .property-item')
+        property_card = cards.first
         expect(property_card).to_contain_text('등촌동 아파트')
         expect(property_card).to_contain_text('72%')
-        expect(page.get_by_role('heading', name='등촌동 아파트 매매 실거래 1건')).to_be_visible()
+        expect(page.get_by_role('heading', name='강서구 등촌동 아파트 매매 실거래 3건')).to_be_visible()
         expect(page.locator('#search-result')).to_contain_text('조회 기간 2026-06 ~ 2026-11')
         expect(property_card).to_contain_text('계약일 2026-10-12')
         expect(property_card).to_contain_text(markup_text)
@@ -180,6 +185,23 @@ try:
         expect(property_card).to_be_in_viewport()
         property_card.get_by_role('button', name='비교 추가').click()
         expect(page.locator('#comparison-list')).to_contain_text(markup_text)
+        property_card.get_by_role('button', name='비교 추가').click()
+        expect(page.locator('#comparison-count')).to_have_text('1')
+        for card in (cards.nth(1), cards.nth(2)):
+            card.get_by_role('button', name='비교 추가').click()
+        expect(page.locator('#comparison-count')).to_have_text('3')
+        page.get_by_role('button', name='비교하기 (3개)').click()
+        comparison = page.locator('.comparison-modal')
+        expect(comparison).to_contain_text('2026-10-13')
+        expect(comparison).to_contain_text('80,001만 원')
+        with page.expect_download() as download:
+            comparison.get_by_role('button', name='비교 결과 내보내기').click()
+        with open(download.value.path(), encoding='utf-8-sig', newline='') as saved_csv:
+            exported = list(csv.DictReader(saved_csv))
+        assert [(row['계약일'], row['매매가']) for row in exported] == [
+            ('2026-10-12', '80,000만 원'), ('2026-10-13', '80,000만 원'), ('2026-10-12', '80,001만 원'),
+        ]
+        expect(page.locator('#property-type')).to_have_count(0)
         history = page.locator('#sidebar-recent-searches-list')
         expect(history).to_contain_text(markup_text, use_inner_text=False)
         expect(history.locator('img')).to_have_count(0)
