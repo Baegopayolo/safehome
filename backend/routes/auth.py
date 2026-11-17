@@ -59,61 +59,27 @@ def register_auth_routes(app, db, bcrypt):
     @app.route('/mypage')
     @login_required
     def mypage():
-        from models import Favorite, SearchHistory, Notification, Report, HeatmapData, RealTransaction
+        from map_indicators import read_map_indicators
+        from models import Favorite, Notification, Report
         from time_utils import format_kst_datetime, format_kst_date
+        from utils import SEOUL_SIGUNGU_CODES
         favorites = Favorite.query.filter_by(user_id=current_user.id).order_by(Favorite.created_at.desc()).limit(5).all()
         favorite_data = []
-        favorite_regions = [fav.region for fav in favorites]
-        heatmap_scores = {}
-        if favorite_regions:
-            heatmaps = HeatmapData.query.filter(HeatmapData.region.in_(favorite_regions)).all()
-            heatmap_scores = {h.region: h.score for h in heatmaps}
-        history_scores = {}
-        if favorite_regions:
-            histories = SearchHistory.query.filter(
-                SearchHistory.user_id == current_user.id,
-                SearchHistory.region.in_(favorite_regions),
-                SearchHistory.risk_score.isnot(None)
-            ).order_by(SearchHistory.search_date.desc()).all()
-            for h in histories:
-                if h.region not in history_scores:
-                    history_scores[h.region] = h.risk_score
+        indicators = {}
+        if favorites:
+            districts = {code: name for name, code in SEOUL_SIGUNGU_CODES.items()}
+            for row in read_map_indicators(app, db):
+                if row['status'] != 'available':
+                    continue
+                indicators[f"{districts[row['region_code']]} {row['dong']}"] = row['score']
+                if row['region'] != '신사동':  # This unqualified name also refers to a dong in Eunpyeong-gu.
+                    indicators[row['region']] = row['score']
         for fav in favorites:
-            risk_score = heatmap_scores.get(fav.region) or history_scores.get(fav.region) or 0
-            risk_level = 'safe' if risk_score < 60 else ('warning' if risk_score < 80 else 'danger')
             favorite_data.append({
                 'id': fav.id,
                 'address': fav.region,
                 'date_added': format_kst_date(fav.created_at),
-                'risk_score': risk_score,
-                'risk_level': risk_level
-            })
-        history = SearchHistory.query.filter_by(user_id=current_user.id).order_by(SearchHistory.search_date.desc()).limit(5).all()
-        history_data = []
-        history_regions = [h.region for h in history]
-        result_counts = {}
-        if history_regions:
-            from utils import _extract_dong
-            for h in history:
-                try:
-                    dong = _extract_dong(h.region)
-                    if dong:
-                        count = RealTransaction.query.filter(RealTransaction.dong_name.contains(dong)).count()
-                    else:
-                        count = RealTransaction.query.filter(RealTransaction.region.contains(h.region)).count()
-                    result_counts[h.region] = count
-                except Exception as e:
-                    result_counts[h.region] = 0
-        for h in history:
-            result_count = result_counts.get(h.region, 0)
-            if result_count == 0 and h.risk_score is not None:
-                result_count = max(1, h.risk_score // 10) if h.risk_score > 0 else 0
-            history_data.append({
-                'id': h.id,
-                'query': h.region,
-                'search_date': format_kst_datetime(h.search_date),
-                'result_count': result_count,
-                'risk_score': round(h.risk_score, 1) if h.risk_score is not None else None
+                'jeonse_rate': indicators.get(' '.join(fav.region.split())),
             })
         notifications = Notification.query.filter(
             (Notification.user_id == current_user.id) | (Notification.user_id.is_(None))
@@ -157,7 +123,6 @@ def register_auth_routes(app, db, bcrypt):
                              username=session.get('display_name', current_user.username),
                              join_date=format_kst_date(current_user.created_at, '%Y년 %m월 %d일'),
                              favorites=favorite_data,
-                             history=history_data,
                              notifications=notification_data,
                              reports=report_data,
                              reviews=review_data)

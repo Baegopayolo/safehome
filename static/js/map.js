@@ -51,6 +51,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 이벤트 리스너 설정
 function setupEventListeners() {
+    const header = document.querySelector('.site-header');
+    if (header) {
+        const updateSidebarOffset = () => {
+            document.getElementById('main-container').style.setProperty('--map-header-height', `${header.offsetHeight}px`);
+        };
+        updateSidebarOffset();
+        new ResizeObserver(updateSidebarOffset).observe(header);
+    }
     // 검색 버튼
     const searchBtn = document.getElementById('search-btn');
     if (searchBtn) {
@@ -369,20 +377,24 @@ function updateFavoriteSidebar(favorites) {
         return;
     }
     
-    sidebar.innerHTML = favorites.slice(0, 10).map(fav => `
-        <div class="favorite-sidebar-item" style="padding: 10px; margin-bottom: 8px; background: #f9fafb; border-radius: 6px; cursor: pointer; transition: background 0.2s;"
-             onclick="searchAddressFromFavorite('${fav.region}')"
-             onmouseover="this.style.background='#f0f0f0'"
-             onmouseout="this.style.background='#f9fafb'">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; color: #333;">${fav.region}</span>
-                <button onclick="event.stopPropagation(); toggleFavorite('${fav.region}', 'sidebar-${fav.id}')" 
-                        style="background: none; border: none; font-size: 16px; cursor: pointer; color: #ffc107; padding: 0;">
-                    ⭐
-                </button>
-            </div>
-        </div>
-    `).join('');
+    sidebar.replaceChildren(...favorites.slice(0, 10).map(favorite => {
+        const item = document.createElement('div');
+        item.className = 'favorite-sidebar-item map-sidebar-row';
+        const search = document.createElement('button');
+        search.type = 'button';
+        search.className = 'map-sidebar-search';
+        search.textContent = favorite.region;
+        search.onclick = () => searchAddressFromFavorite(favorite.region);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'map-sidebar-remove';
+        remove.textContent = '⭐';
+        remove.title = '즐겨찾기 해제';
+        remove.id = `sidebar-${favorite.id}`;
+        remove.onclick = () => toggleFavorite(favorite.region, remove.id);
+        item.append(search, remove);
+        return item;
+    }));
 }
 
 // 전역 함수 노출 (React 모듈에서 사용할 수 있도록)
@@ -517,7 +529,7 @@ function resetMapSearch() {
     mapSearch = null;
     closeRegionPopup();
     document.getElementById('map-results-title').textContent = '실거래가 조회';
-    document.getElementById('real-tx-results').textContent = '지역을 검색하면 매물이 표시됩니다.';
+    document.getElementById('real-tx-results').textContent = '지역을 검색하면 매매 실거래가 표시됩니다.';
     document.getElementById('map-results-favorite').hidden = true;
     document.getElementById('map-results-all').hidden = true;
 }
@@ -526,8 +538,8 @@ async function loadMapProperties(region, signal) {
     const results = document.getElementById('real-tx-results');
     const favorite = document.getElementById('map-results-favorite');
     const all = document.getElementById('map-results-all');
-    document.getElementById('map-results-title').textContent = `${region} 매물`;
-    results.textContent = '매물을 불러오는 중입니다.';
+    document.getElementById('map-results-title').textContent = `${region} 아파트 매매 실거래`;
+    results.textContent = '매매 실거래를 불러오는 중입니다.';
     setRightSidebarOpen(true);
     if (window.matchMedia('(max-width: 960px)').matches) {
         const panel = document.getElementById('side-panel');
@@ -539,14 +551,14 @@ async function loadMapProperties(region, signal) {
     try {
         const response = await fetch(`/analyze?region=${encodeURIComponent(region)}`, { signal });
         if (!response.ok) throw new Error(`매물 조회 실패 (${response.status})`);
-        const { properties } = await response.json();
+        const { properties, period } = await response.json();
         if (signal.aborted) return;
         if (!Array.isArray(properties)) throw new Error('매물 응답 형식 오류');
         if (!properties.length) {
-            results.textContent = '조회된 매물이 없습니다.';
+            results.textContent = '조회 기간에 신고된 아파트 매매 실거래가 없습니다.';
             return;
         }
-        updateRealTransactionResults(properties);
+        updateRealTransactionResults(properties, period);
         favorite.dataset.region = region;
         favorite.onclick = () => toggleFavorite(region, favorite.id);
         favorite.hidden = false;
@@ -638,39 +650,44 @@ function updateStats() {
 }
 
 // 사이드바 실거래 결과 업데이트
-function updateRealTransactionResults(properties) {
+function updateRealTransactionResults(properties, period) {
     const resultsDiv = document.getElementById('real-tx-results');
     if (!resultsDiv) return;
     
-    if (properties.length === 0) {
-        resultsDiv.innerHTML = '<div style="color: #999; font-size: 13px; padding: 10px;">매물 데이터가 없습니다</div>';
-        return;
+    resultsDiv.replaceChildren(...properties.slice(0, 10).map(property => {
+        const item = document.createElement('div');
+        item.className = 'map-result-item';
+        const title = document.createElement('strong');
+        title.textContent = property.name || '정보 없음';
+        const address = document.createElement('div');
+        address.textContent = property.address || '';
+        const price = document.createElement('strong');
+        price.className = 'map-result-price';
+        price.textContent = `매매가: ${property.price || '정보 없음'}`;
+        const date = document.createElement('div');
+        date.textContent = `계약일 ${property.deal_date || '정보 없음'}`;
+        item.append(title, address, date, price);
+
+        if (property.jeonse_price_raw != null) {
+            const deposit = document.createElement('div');
+            deposit.textContent = `전세 보증금 중앙값: ${property.jeonse_price}`;
+            item.append(deposit);
+        }
+        const rate = document.createElement('div');
+        const value = document.createElement('strong');
+        const ratio = property.jeonse_rate;
+        value.textContent = ratio == null ? '판단 불가' : `${ratio}%`;
+        value.style.color = ratio == null ? '#6b7280' :
+            ratio >= 80 ? '#dc3545' : ratio >= 60 ? '#a16207' : '#166534';
+        rate.append('참고 전세가율: ', value);
+        item.append(rate);
+        return item;
+    }));
+    if (period?.from && period?.to) {
+        const range = document.createElement('p');
+        range.textContent = `조회 기간 ${period.from} ~ ${period.to} · 계약월 기준`;
+        resultsDiv.prepend(range);
     }
-    
-    const html = properties.slice(0, 10).map(prop => {
-        const jeonseRateText = prop.jeonse_rate == null ? '판단 불가' : `${prop.jeonse_rate}%`;
-        const jeonseRateColor = prop.jeonse_rate == null ? '#6b7280' :
-            prop.jeonse_rate >= 80 ? '#dc3545' : prop.jeonse_rate >= 60 ? '#a16207' : '#166534';
-        return `
-        <div style="padding: 10px; border-bottom: 1px solid #eee; font-size: 13px;">
-            <div style="font-weight: 600; margin-bottom: 4px;">${prop.name || '정보없음'}</div>
-            <div style="color: #666; margin-bottom: 2px;">${prop.address || ''}</div>
-            <div style="color: #1565c0; font-weight: 600; margin-bottom: 2px;">
-                매매가: ${prop.price || '정보 없음'}
-            </div>
-            ${prop.jeonse_price_raw != null ? `
-            <div style="color: #666; margin-bottom: 2px;">
-                전세 보증금 중앙값: ${prop.jeonse_price}
-            </div>
-            ` : ''}
-            <div style="margin-top: 4px;">
-                참고 전세가율: <span style="color: ${jeonseRateColor}; font-weight: 600;">${jeonseRateText}</span>
-            </div>
-        </div>
-    `;
-    }).join('');
-    
-    resultsDiv.innerHTML = html;
 }
 
 // ============================================
@@ -771,24 +788,29 @@ function loadRecentSearches() {
                 return;
             }
             
-            // 최대 5개만 표시
-            const limitedData = data.slice(0, 5);
-            
-            container.innerHTML = limitedData.map(item => {
-                const timeAgo = getTimeAgo(new Date(item.search_date));
-                
-                return `
-                    <div class="recent-search-item">
-                        <div class="search-info" onclick="searchFromHistory('${item.region}')" style="flex: 1; cursor: pointer;">
-                            <div class="search-region">${item.region}</div>
-                            <div class="search-time">${timeAgo}</div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <button class="remove-btn" onclick="event.stopPropagation(); deleteSearchHistory(${item.id})" title="삭제" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 18px; padding: 4px 8px; line-height: 1;">×</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            container.replaceChildren(...data.slice(0, 5).map(history => {
+                const item = document.createElement('div');
+                item.className = 'recent-search-item map-sidebar-row';
+                const search = document.createElement('button');
+                search.type = 'button';
+                search.className = 'search-info map-sidebar-search';
+                const region = document.createElement('span');
+                region.className = 'search-region';
+                region.textContent = history.region;
+                const date = document.createElement('span');
+                date.className = 'search-time';
+                date.textContent = getTimeAgo(new Date(history.search_date));
+                search.append(region, date);
+                search.onclick = () => searchFromHistory(history.region);
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'map-sidebar-remove';
+                remove.title = '검색 기록 삭제';
+                remove.textContent = '×';
+                remove.onclick = () => deleteSearchHistory(history.id);
+                item.append(search, remove);
+                return item;
+            }));
         })
         .catch(error => {
             console.error('검색 기록 로드 실패:', error);
@@ -801,7 +823,7 @@ function loadRecentSearches() {
 
 // 검색 히스토리 삭제 (확인 팝업 없이 바로 삭제)
 function deleteSearchHistory(historyId) {
-    fetch(`/api/search-history/${historyId}`, {
+    fetch(`/api/search-history/${encodeURIComponent(historyId)}`, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',
@@ -811,6 +833,7 @@ function deleteSearchHistory(historyId) {
     .then(data => {
         if (data.status === 'success') {
             loadRecentSearches(); // 목록 새로고침
+            window.loadSidebarRecentSearches?.();
         } else {
             alert('삭제에 실패했습니다.');
         }

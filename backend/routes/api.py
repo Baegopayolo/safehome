@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from utils import (
     TransactionSourceError, _resolve_lawd_cd, load_transaction_snapshot,
     filter_transactions_by_region,
-    fetch_properties_by_region, analyze_property_warnings, generate_safety_checklist,
+    fetch_properties_by_region, property_search_months, analyze_property_warnings, generate_safety_checklist,
 )
 from models import SearchHistory, Favorite, Review, Report, Notification, RealTransaction, HeatmapData
 from time_utils import format_kst_datetime, get_kst_now
@@ -130,13 +130,19 @@ def register_api_routes(app, db):
         region = request.args.get('region', '').strip()
         if not region:
             return jsonify(error='지역명을 입력하세요'), 400
+        months = property_search_months()
         try:
-            properties = fetch_properties_by_region(region, db, RealTransaction)
+            properties = fetch_properties_by_region(region, db, RealTransaction, months=months)
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
         except TransactionSourceError:
             return jsonify(error='매매 실거래 자료를 불러오지 못했습니다. 잠시 후 다시 시도하세요.'), 502
-        return jsonify(properties=[property_payload(prop) for prop in properties])
+        return jsonify(properties=[property_payload(prop) for prop in properties],
+                       period=property_search_period(months))
+
+    def property_search_period(months):
+        return {'from': f'{months[-1][:4]}-{months[-1][4:]}',
+                'to': f'{months[0][:4]}-{months[0][4:]}'}
 
     @app.route('/api/real-transactions')
     def api_real_transactions():
@@ -170,8 +176,9 @@ def register_api_routes(app, db):
         max_price = request.args.get('max_price', type=int)
         property_type = request.args.get('property_type', '')
         risk_level = request.args.get('risk_level', '')
+        months = property_search_months()
         try:
-            properties = fetch_properties_by_region(region.strip(), db, RealTransaction)
+            properties = fetch_properties_by_region(region.strip(), db, RealTransaction, months=months)
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
         except TransactionSourceError:
@@ -194,7 +201,7 @@ def register_api_routes(app, db):
             if risk_level and prop.get('risk_level') != risk_level:
                 continue
             filtered_properties.append(property_payload(prop))
-        return jsonify({'properties': filtered_properties})
+        return jsonify(properties=filtered_properties, period=property_search_period(months))
     @app.route('/api/search-history', methods=['GET', 'POST'])
     def search_history():
         if request.method == 'POST':

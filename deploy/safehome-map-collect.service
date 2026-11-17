@@ -2,6 +2,7 @@
 Description=SafeHome Seoul apartment map comparison collection
 Wants=network-online.target
 After=network-online.target
+OnFailure=safehome-monitor.service
 
 [Service]
 Type=oneshot
@@ -11,6 +12,7 @@ WorkingDirectory=/home/ubuntu/safehome-current
 EnvironmentFile=/home/ubuntu/.config/safehome-dashboard.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/home/ubuntu/safehome-current/venv/bin/python -m flask --app backend/app sync-map-indicators
+ExecStartPost=/usr/bin/touch /home/ubuntu/.local/state/safehome/map-collect.ok
 TimeoutStartSec=1h
 UMask=0077
 NoNewPrivileges=true

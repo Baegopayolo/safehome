@@ -16,13 +16,12 @@ function loadFavorites() {
 }
 
 function updateFavoriteButtons() {
-    favoriteRegions.forEach(region => {
-        document.querySelectorAll(`[onclick*="toggleFavoriteRegion('${region}'"]`).forEach(btn => {
-            btn.textContent = '⭐';
-            btn.style.color = '#ffc107';
-            btn.title = '즐겨찾기 해제';
-        });
-    });
+    for (const button of document.querySelectorAll('[data-favorite-region]')) {
+        const selected = favoriteRegions.has(button.dataset.favoriteRegion);
+        button.textContent = selected ? '⭐' : '☆';
+        button.style.color = selected ? '#ffc107' : '#ccc';
+        button.title = selected ? '즐겨찾기 해제' : '즐겨찾기 추가';
+    }
 }
 
 function toggleFavoriteRegion(region, buttonId) {
@@ -107,7 +106,7 @@ function checkAddressMatch(region, properties) {
 }
 
 // 공통 함수: 검색 결과 처리 (성능 최적화)
-function handleSearchResult(region, props, resultDiv, isAdvanced = false) {
+function handleSearchResult(region, props, resultDiv, period, isAdvanced = false) {
     if (props.length === 0) {
         resultDiv.innerHTML = '';
         const msg = isAdvanced 
@@ -142,7 +141,7 @@ function handleSearchResult(region, props, resultDiv, isAdvanced = false) {
     }
     
     // 즉시 결과 렌더링 (사용자 경험 개선)
-    renderResults(region, props, resultDiv);
+    renderResults(region, props, resultDiv, period);
     if (window.location.hash === '#search-result') resultDiv.scrollIntoView();
     
     // 비동기 작업들은 백그라운드에서 처리 (블로킹 없음)
@@ -201,7 +200,7 @@ function searchRegion() {
             }
             // 정상 응답 처리
             const props = Array.isArray(data.properties) ? data.properties : (Array.isArray(data) ? data : []);
-            handleSearchResult(region, props, resultDiv);
+            handleSearchResult(region, props, resultDiv, data.period);
         })
         .catch(error => {
             console.error('검색 오류:', error);
@@ -256,7 +255,7 @@ function advancedSearch() {
                 return;
             }
             const props = Array.isArray(data.properties) ? data.properties : (Array.isArray(data) ? data : []);
-            handleSearchResult(region, props, resultDiv, true);
+            handleSearchResult(region, props, resultDiv, data.period, true);
         })
         .catch(error => {
             console.error('고급 검색 오류:', error);
@@ -296,13 +295,19 @@ function saveSearchHistory(region, properties) {
 }
 
 // 결과 렌더링
-function renderResults(region, props, container) {
+function escapePropertyText(value) {
+    const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
+}
+
+function renderResults(region, props, container, period) {
     const properties = [...props];
 
     const headerHTML = (count) => `
         <div class="result-head">
-            <h2>"${region}" 매물 분석 결과 <span class="badge badge-neutral" id="result-count">${count}</span>
+            <h2>${escapePropertyText(region)} 아파트 매매 실거래 <span class="badge badge-neutral"><span id="result-count">${count}</span>건</span>
             ${isAdvancedSearch ? '<span class="badge badge-warn" style="margin-left:8px;">고급 검색</span>' : ''}</h2>
+            ${period?.from && period?.to ? `<p class="comparison-evidence">조회 기간 ${escapePropertyText(period.from)} ~ ${escapePropertyText(period.to)} · 계약월 기준</p>` : ''}
             <div class="controls">
                 <label for="sort-select">정렬</label>
                 <select id="sort-select" class="ctrl">
@@ -329,14 +334,14 @@ function renderResults(region, props, container) {
         const riskClass = risk === 'high' ? 'badge-danger' : risk === 'medium' ? 'badge-warn' : '';
         const riskLabel = {high: '전세가율 높음', medium: '전세가율 주의', low: '전세가율 낮음'}[risk] || '판단 불가';
         
-        const warnItems = warns.length ? warns.map(w => `<li>⚠️ ${w}</li>`).join('') : '<li>추가 경고 항목 없음</li>';
+        const warnItems = warns.length ? warns.map(w => `<li>⚠️ ${escapePropertyText(w)}</li>`).join('') : '<li>추가 경고 항목 없음</li>';
         
         // 체크리스트를 동적으로 렌더링 (중요도 표시)
         const checklistItems = checklist.length ? checklist.map(c => {
             const isImportant = c.includes('⚠️') || c.includes('매우') || c.includes('추가');
             const itemClass = isImportant ? 'checklist-important' : '';
             const icon = isImportant ? '🔴' : '☑';
-            return `<li class="${itemClass}">${icon} ${c.replace('⚠️ ', '')}</li>`;
+            return `<li class="${itemClass}">${icon} ${escapePropertyText(c.replace('⚠️ ', ''))}</li>`;
         }).join('') : '<li>체크리스트 항목이 없습니다.</li>';
         
         let rateBadgeClass = 'badge-success';
@@ -348,52 +353,42 @@ function renderResults(region, props, container) {
         const unavailable = prop.comparison_status === 'source_unavailable'
             ? '전세 자료 조회 실패' : '비교 표본 부족';
         const jeonseInfo = prop.jeonse_rate != null
-            ? `<div class="comparison-evidence">전세 보증금 중앙값 <strong>${prop.jeonse_price}</strong> · 참고 전세가율 <span class="badge ${rateBadgeClass}">${prop.jeonse_rate}%</span> · 비교 ${samples}건 (신뢰도 ${confidence})</div>`
+            ? `<div class="comparison-evidence">전세 보증금 중앙값 <strong>${escapePropertyText(prop.jeonse_price)}</strong> · 참고 전세가율 <span class="badge ${rateBadgeClass}">${escapePropertyText(prop.jeonse_rate)}%</span> · 비교 ${samples}건 (신뢰도 ${confidence})</div>`
             : `<div class="comparison-evidence">전세가율 판단 불가 · ${unavailable}${samples === null ? '' : ` (${samples}건)`}</div>`;
 
-        // 지역명 추출 (주소에서)
-        const address = prop.address || '';
-        const regionMatch = address.match(/([가-힣]+동|[가-힣]+가|[가-힣]+리)/);
-        const regionName = regionMatch ? regionMatch[1] : region;
         const favoriteId = `favorite-prop-${idx}`;
         
         // 특이사항이 없는 경우 클래스 추가
         const noWarningsClass = warnCount === 0 ? 'no-warnings' : '';
         
         return `
-            <div class="property-item ${noWarningsClass}" data-warnings="${warns.join(' ').toLowerCase()}" data-name="${(name||'').toLowerCase()}">
+            <div class="property-item ${noWarningsClass}">
                 <div class="card-head">
                     <div style="flex:1;">
                         <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
-                            <h3 style="margin:0; flex:1;">${name}</h3>
-                            <button id="${favoriteId}" onclick="toggleFavoriteRegion('${regionName}', '${favoriteId}')" 
+                            <h3 style="margin:0; flex:1;">${escapePropertyText(name)}</h3>
+                            <button id="${favoriteId}" data-favorite-region
                                     style="background:none; border:none; font-size:18px; cursor:pointer; padding:4px; line-height:1; color:#ccc;"
                                     title="즐겨찾기 추가">
                                 ☆
                             </button>
                         </div>
-                        <div style="font-size:14px; font-weight:bold; color:#1565c0; margin-top:4px;">매매가: ${prop.price || '정보 없음'}</div>
+                        <div style="font-size:14px; font-weight:bold; color:#1565c0; margin-top:4px;">매매가: ${escapePropertyText(prop.price || '정보 없음')}</div>
+                        <div class="comparison-evidence">계약일 ${escapePropertyText(prop.deal_date || '정보 없음')}</div>
                         ${jeonseInfo}
                     </div>
                     <div class="card-actions">
-                        <span class="badge ${riskClass}">${riskLabel}</span>
-                        <button class="compare-btn" onclick="addToComparisonFromButton(this)" data-property='${JSON.stringify(prop).replace(/'/g, "&apos;")}'>비교 추가</button>
+                        <span class="badge ${riskClass}">${escapePropertyText(riskLabel)}</span>
+                        <button class="compare-btn">비교 추가</button>
                     </div>
                 </div>
                 <div class="warnings ${noWarningsClass}"><ul class="warn-list">${warnItems}</ul></div>
                 <h4 class="check-toggle">[안전 계약 체크리스트] ▾</h4>
                 <ul class="checklist collapsed">${checklistItems}</ul>
                 <div class="property-actions">
-                    <button class="action-btn location-btn" onclick="viewPropertyLocation(${JSON.stringify(address || regionName || '').replace(/"/g, '&quot;')})">📍 위치보기</button>
-                    <button class="action-btn review-btn" onclick="showReviewModal('${name}')">리뷰 작성</button>
-                    <button class="action-btn report-btn" onclick="showReportModal(${JSON.stringify({
-                        name: name,
-                        address: address || '',
-                        price: prop.price || '',
-                        jeonse_price: prop.jeonse_price || '',
-                        jeonse_rate: prop.jeonse_rate || null,
-                        region: regionName
-                    }).replace(/"/g, '&quot;')})">신고하기</button>
+                    <button class="action-btn location-btn">📍 위치보기</button>
+                    <button class="action-btn review-btn">리뷰 작성</button>
+                    <button class="action-btn report-btn">신고하기</button>
                 </div>
             </div>
         `;
@@ -414,13 +409,14 @@ function renderResults(region, props, container) {
     const renderPage = () => {
         const pages = Math.max(1, Math.ceil(filtered.length / propertyPageSize));
         const offset = (propertyPage - 1) * propertyPageSize;
-        container.querySelector('.property-list').innerHTML = buildCards(filtered.slice(offset, offset + propertyPageSize));
+        const pageProperties = filtered.slice(offset, offset + propertyPageSize);
+        container.querySelector('.property-list').innerHTML = buildCards(pageProperties);
         document.getElementById('result-count').textContent = filtered.length;
         pager.hidden = pages === 1;
         previous.disabled = propertyPage === 1;
         next.disabled = propertyPage === pages;
         pager.querySelector('[data-property-page]').textContent = `${propertyPage} / ${pages}페이지`;
-        attachCardHandlers();
+        attachCardHandlers(pageProperties);
     };
     previous.onclick = () => { propertyPage -= 1; renderPage(); };
     next.onclick = () => { propertyPage += 1; renderPage(); };
@@ -447,16 +443,27 @@ function renderResults(region, props, container) {
         renderPage();
     };
 
-    const attachCardHandlers = () => {
-        document.querySelectorAll('.check-toggle').forEach(h => {
-            h.addEventListener('click', () => {
-                const container = h.closest('.property-item');
-                const list = container?.querySelector('.checklist');
-                if (!list) return;
-                list.classList.toggle('collapsed');
-                h.textContent = list.classList.contains('collapsed') ? '[안전 계약 체크리스트] ▾' : '[안전 계약 체크리스트] ▴';
-            });
+    const attachCardHandlers = pageProperties => {
+        container.querySelectorAll('.property-item').forEach((card, index) => {
+            const property = pageProperties[index];
+            const name = property.name || `매물 #${index + 1}`;
+            const address = property.address || '';
+            const regionName = address.match(/([가-힣]+동|[가-힣]+가|[가-힣]+리)/)?.[1] || region;
+            const favorite = card.querySelector('[data-favorite-region]');
+            favorite.dataset.favoriteRegion = regionName;
+            favorite.onclick = () => toggleFavoriteRegion(regionName, favorite.id);
+            card.querySelector('.compare-btn').onclick = () => addToComparison(property);
+            card.querySelector('.location-btn').onclick = () => viewPropertyLocation(address || regionName);
+            card.querySelector('.review-btn').onclick = () => showReviewModal(name);
+            card.querySelector('.report-btn').onclick = () => showReportModal({ ...property, name, region: regionName });
+            const toggle = card.querySelector('.check-toggle');
+            const checklist = card.querySelector('.checklist');
+            toggle.onclick = () => {
+                checklist.classList.toggle('collapsed');
+                toggle.textContent = checklist.classList.contains('collapsed') ? '[안전 계약 체크리스트] ▾' : '[안전 계약 체크리스트] ▴';
+            };
         });
+        updateFavoriteButtons();
     };
 
     renderPage();
@@ -541,12 +548,12 @@ function loadRealTransactions(region, monthCount = null, page = 1) {
                     const price = item['거래금액'] ? (item['거래금액'] / 10000).toFixed(0) + '억' : item['거래금액원문'] || '가격 정보 없음';
                     return `
                         <div class="transaction-card">
-                            <h4>${item['아파트'] || '정보없음'} · ${item['층'] || ''}층</h4>
+                            <h4>${escapePropertyText(item['아파트'] || '정보없음')} · ${escapePropertyText(item['층'] || '')}층</h4>
                             <div class="transaction-meta">
-                                <span class="transaction-price">${price}</span>
-                                <span>${item['법정동'] || ''} · ${areaText}</span>
-                                <span>거래일자: ${item['거래일자'] || ''}</span>
-                                <span>건축년도: ${item['건축년도'] || '정보없음'}</span>
+                                <span class="transaction-price">${escapePropertyText(price)}</span>
+                                <span>${escapePropertyText(item['법정동'] || '')} · ${escapePropertyText(areaText)}</span>
+                                <span>거래일자: ${escapePropertyText(item['거래일자'] || '')}</span>
+                                <span>건축년도: ${escapePropertyText(item['건축년도'] || '정보없음')}</span>
                             </div>
                         </div>
                     `;
@@ -577,21 +584,6 @@ function changeMonthRange() {
 }
 
 // 매물 비교 기능
-function addToComparisonFromButton(button) {
-    try {
-        const propertyJson = button.getAttribute('data-property');
-        if (!propertyJson) {
-            console.error('매물 데이터를 찾을 수 없습니다.');
-            return;
-        }
-        const property = JSON.parse(propertyJson.replace(/&apos;/g, "'"));
-        addToComparison(property);
-    } catch (e) {
-        console.error('매물 데이터 파싱 오류:', e);
-        alert('매물 정보를 불러오는 중 오류가 발생했습니다.');
-    }
-}
-
 function addToComparison(property) {
     if (comparisonProperties.length >= 5) {
         alert('최대 5개까지만 비교할 수 있습니다.');
@@ -645,7 +637,7 @@ function updateComparisonList() {
     
     listContainer.innerHTML = comparisonProperties.map((prop, idx) => `
         <div class="comparison-item">
-            <span class="comparison-item-name">${prop.name || '매물명 없음'}</span>
+            <span class="comparison-item-name">${escapePropertyText(prop.name || '매물명 없음')}</span>
             <button class="comparison-remove" onclick="removeFromComparison(${idx})" title="제거">×</button>
         </div>
     `).join('');
@@ -698,8 +690,8 @@ function generateComparisonModal() {
                             return `
                                 <div class="risk-bar-item">
                                     <div class="risk-bar-label">
-                                        <span class="risk-property-name">${prop.name || '매물명 없음'}</span>
-                                        <span class="risk-score ${risk.class}">${rate == null ? '판단 불가' : rate + '%'}</span>
+                                        <span class="risk-property-name">${escapePropertyText(prop.name || '매물명 없음')}</span>
+                                        <span class="risk-score ${risk.class}">${rate == null ? '판단 불가' : escapePropertyText(rate) + '%'}</span>
                                     </div>
                                     <div class="risk-bar-container">
                                         <div class="risk-bar" style="width: ${width}%; background-color: ${risk.color};"></div>
@@ -716,7 +708,7 @@ function generateComparisonModal() {
                         <thead>
                             <tr>
                                 <th class="comparison-category">구분</th>
-                                ${comparisonProperties.map(p => `<th>${p.name || '매물명 없음'}</th>`).join('')}
+                                ${comparisonProperties.map(p => `<th>${escapePropertyText(p.name || '매물명 없음')}</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody>
@@ -725,15 +717,15 @@ function generateComparisonModal() {
                             </tr>
                             <tr>
                                 <td class="comparison-label">주소</td>
-                                ${comparisonProperties.map(p => `<td>${p.address || '정보 없음'}</td>`).join('')}
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(p.address || '정보 없음')}</td>`).join('')}
                             </tr>
                             <tr>
                                 <td class="comparison-label">매매가</td>
-                                ${comparisonProperties.map(p => `<td>${formatPrice(p.price)}</td>`).join('')}
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(formatPrice(p.price))}</td>`).join('')}
                             </tr>
                             <tr>
                                 <td class="comparison-label">전세가</td>
-                                ${comparisonProperties.map(p => `<td>${p.jeonse_price || '정보 없음'}</td>`).join('')}
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(p.jeonse_price || '정보 없음')}</td>`).join('')}
                             </tr>
                             <tr>
                                 <td class="comparison-label">전세가율</td>
@@ -741,20 +733,20 @@ function generateComparisonModal() {
                                     const rate = p.jeonse_rate;
                                     if (rate == null) return '<td>판단 불가</td>';
                                     const rateClass = rate >= 80 ? 'rate-high' : (rate >= 60 ? 'rate-medium' : 'rate-low');
-                                    return `<td><span class="${rateClass}">${rate}%</span></td>`;
+                                    return `<td><span class="${rateClass}">${escapePropertyText(rate)}%</span></td>`;
                                 }).join('')}
                             </tr>
                             <tr>
                                 <td class="comparison-label">면적</td>
-                                ${comparisonProperties.map(p => `<td>${p.area || '정보 없음'}</td>`).join('')}
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(p.area || '정보 없음')}</td>`).join('')}
                             </tr>
                             <tr>
                                 <td class="comparison-label">층수</td>
-                                ${comparisonProperties.map(p => `<td>${p.floor || '정보 없음'}</td>`).join('')}
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(p.floor || '정보 없음')}</td>`).join('')}
                             </tr>
                             <tr>
                                 <td class="comparison-label">건축년도</td>
-                                ${comparisonProperties.map(p => `<td>${p.build_year || '정보 없음'}</td>`).join('')}
+                                ${comparisonProperties.map(p => `<td>${escapePropertyText(p.build_year || '정보 없음')}</td>`).join('')}
                             </tr>
                             
                             <tr class="comparison-section-header">
@@ -776,7 +768,7 @@ function generateComparisonModal() {
                                 ${comparisonProperties.map(p => {
                                     const warnings = p.warnings || [];
                                     const mainWarnings = warnings.slice(0, 3).map(w => w.message || w).join(', ');
-                                    return `<td class="warning-list">${mainWarnings || '없음'}</td>`;
+                                    return `<td class="warning-list">${escapePropertyText(mainWarnings || '없음')}</td>`;
                                 }).join('')}
                             </tr>
                             

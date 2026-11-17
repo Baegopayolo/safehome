@@ -51,14 +51,31 @@ class MaintenanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             state = Path(tmp)
             with patch.object(maintenance, 'notify') as notify, patch.object(maintenance, 'read_job') as read:
-                read.side_effect = lambda job, *_: '실패' if job == 'collect' else None
+                read.side_effect = lambda job, *_: '실패' if job == 'map-collect' else None
                 maintenance.monitor(state)
                 maintenance.monitor(state)
+                self.assertIn('map-collect 실패', notify.call_args.args[0])
                 read.side_effect = None
                 read.return_value = None
                 maintenance.monitor(state)
                 self.assertEqual(notify.call_count, 2)
                 self.assertIn('정상 복구', notify.call_args.args[0])
+
+    def test_map_collection_reports_failure_and_missing_daily_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            marker = state / 'map-collect.ok'
+            marker.touch()
+            yesterday = datetime(2026, 11, 7, 6, tzinfo=maintenance.KST).timestamp()
+            os.utime(marker, (yesterday, yesterday))
+            deadline = datetime(2026, 11, 8, 6, 45, tzinfo=maintenance.KST)
+            with patch.object(maintenance, 'command') as command:
+                command.return_value = 'LoadState=loaded\nActiveState=inactive\nResult=success'
+                self.assertIsNone(maintenance.read_job('map-collect', state, deadline - timedelta(minutes=1)))
+                self.assertEqual(maintenance.read_job('map-collect', state, deadline), '완료 기한 초과')
+                command.return_value = 'LoadState=loaded\nActiveState=failed\nResult=exit-code'
+                self.assertEqual(maintenance.read_job('map-collect', state, deadline), '실패')
+                self.assertIn('safehome-map-collect.service', command.call_args.args[0])
 
     def test_retention_preserves_minimum_and_ignores_other_files(self):
         now = datetime(2026, 11, 8, tzinfo=maintenance.KST)

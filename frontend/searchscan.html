@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>세이프홈 - 지역 매물 분석</title>
+    <title>세이프홈 - 아파트 실거래 분석</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/searchscan.css') }}">
 </head>
@@ -11,7 +11,8 @@
     {% include '_left_sidebar.html' %}
     {% include '_right_sidebar.html' %}
     <main>
-        <h2>지역 매물 분석</h2>
+        <h2>아파트 실거래 분석</h2>
+        <p class="comparison-evidence">국토교통부에 신고된 과거 아파트 매매 거래를 조회합니다.</p>
         <div id="search-bar">
             <span class="search-input-wrap">
                 <input type="text" id="region-input" placeholder="분석할 동 이름(예: 화곡동)을 입력하세요" list="recent-searches-list">
@@ -64,7 +65,7 @@
         <section class="real-transactions-section">
             <div class="real-transactions-header">
                 <div class="header-left">
-                <h3>최근 실거래 데이터</h3>
+                <h3>월별 아파트 매매 실거래</h3>
                 <small>국토교통부 실거래 공개시스템 기준 (월별 업데이트)</small>
                 </div>
                 <div class="header-right">
@@ -170,7 +171,7 @@
             </div>
         </div>
     </main>
-    <script src="{{ url_for('static', filename='js/searchscan.js', v='direct-property-results') }}"></script>
+    <script src="{{ url_for('static', filename='js/searchscan.js', v='sale-contract-period') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

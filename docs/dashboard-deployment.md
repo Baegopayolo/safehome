@@ -116,10 +116,13 @@ sudo systemctl start safehome-collect.service
 | 예약 작업 (한국 시간) | 정상 완료 기준 |
 | --- | --- |
 | 일일 수집 03:10~03:15 | 08:00 |
+| 일일 지도 수집 05:30~05:35 | 06:45 |
 | 일일 PostgreSQL 백업 02:30 | 04:30 |
 | 일요일 격리 복원 09:30 | 12:00 |
 
-실패 시 systemd가 즉시 감시를 실행하고, 15분 간격으로 성공 기록을 검사해 작업이 실행되지 않았거나 늦어진 경우도 탐지합니다. 장애 항목이 바뀌거나 모두 복구됐을 때만 저널과 선택한 웹훅에 알립니다. 웹훅 요청에 실패하면 다음 감시에서 재시도합니다.
+실패 시 systemd가 즉시 감시를 실행하고, 15분 간격으로 성공 기록을 검사해 작업이 실행되지 않았거나 늦어진 경우도 탐지합니다. 장애 항목이 바뀌거나 모두 복구됐을 때 저널과 설정된 SNS 이메일 또는 웹훅에 알립니다. 알림 전송에 실패하면 다음 감시에서 재시도합니다.
+
+지도 감시를 처음 배포할 때는 변경된 `safehome-map-collect.service`를 설치하고 `systemctl daemon-reload`를 실행합니다. 새 릴리스로 전환한 뒤 `sudo systemctl start safehome-map-collect.service` 실행 결과가 성공이고 `~ubuntu/.local/state/safehome/map-collect.ok`가 생성됐는지 확인합니다. 지도 수집 일부가 실패하면 성공 기록의 시각은 갱신되지 않습니다.
 
 운영 선택 설정은 권한 600인 `/home/ubuntu/.config/safehome-maintenance.env`에 둡니다.
 

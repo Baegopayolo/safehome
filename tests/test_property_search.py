@@ -56,6 +56,37 @@ class PropertyTests(unittest.TestCase):
             from app import app
         cls.app = app
 
+    def test_mypage_favorites_use_verified_map_indicators(self):
+        from app import db, Favorite, HeatmapData, User
+
+        with self.app.app_context():
+            db.create_all()
+            self.addCleanup(self.drop_map_test_db, db)
+            user = User(username='favorite-test', password='test')
+            db.session.add(user)
+            db.session.flush()
+            client = self.app.test_client()
+            with client.session_transaction() as session:
+                session['_user_id'] = str(user.id)
+            for region in ('강남구 삼성동', '관악구 삼성동', '신사동', '강남구 신사동'):
+                db.session.add(Favorite(user_id=user.id, region=region))
+            db.session.add(HeatmapData(region='관악구 삼성동', score=22, lat=0, lng=0))
+            db.session.commit()
+            indicators = [
+                dict(region='강남구 삼성동', dong='삼성동', region_code='11680', status='available', score=72.5),
+                dict(region='관악구 삼성동', dong=None, region_code='11620', status='unavailable', score=None),
+                dict(region='신사동', dong='신사동', region_code='11680', status='available', score=51),
+            ]
+            with patch('map_indicators.read_map_indicators', return_value=indicators):
+                response = client.get('/mypage')
+            self.assertEqual(response.status_code, 200)
+            markup = response.get_data(as_text=True)
+            self.assertIn('참고 전세가율 72.5%', markup)
+            self.assertEqual(markup.count('참고 전세가율 51.0%'), 1)
+            self.assertEqual(markup.count('판단 불가'), 2)
+            self.assertNotIn('위험도:', markup)
+            self.assertNotIn('22점', markup)
+
     def test_pure_jeonse_median_and_no_prior_ratio_leak(self):
         common = {'아파트': '테스트', '법정동': '역삼동', '건축년도': '2005', '지번': '123-0',
                   '전용면적': '84', '층': '3', '거래일자': '2026-11-01', '거래금액원문': ''}
@@ -77,6 +108,10 @@ class PropertyTests(unittest.TestCase):
             response = self.app.test_client().get('/api/analyze', query_string={'region': '역삼동'})
             self.assertEqual(response.status_code, 200)
             first, second = response.json['properties']
+            self.assertEqual(response.json['period'], {'from': '2026-06', 'to': '2026-11'})
+            advanced = self.app.test_client().get('/api/advanced-search', query_string={'region': '역삼동'})
+            self.assertEqual(advanced.json['period'], response.json['period'])
+        self.assertEqual(first['deal_date'], '2026-11-01')
         self.assertEqual((62.0, 3, 'limited', 'medium'), (first['jeonse_rate'],
                          first['comparison_sample_count'], first['comparison_confidence'], first['risk_level']))
         self.assertIsNone(second['jeonse_rate'])

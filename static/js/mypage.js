@@ -19,10 +19,6 @@ function removeFavorite(id) {
     }
 }
 
-function searchFromFavorite(region) {
-    window.location.href = "{{ url_for('searchscan_page') }}?region=" + encodeURIComponent(region);
-}
-
 function deleteSearchHistory(historyId) {
     if (!confirm('이 검색 기록을 삭제하시겠습니까?')) {
         return;
@@ -182,6 +178,11 @@ function closeReviewModal() {
 
 // 전역 변수로 수정 중인 리뷰 ID 저장
 let editingReviewId = null;
+
+function editReviewFromItem(button) {
+    const { reviewId, reviewRegion, reviewRating, reviewContent } = button.closest('[data-review-id]').dataset;
+    editReview(reviewId, reviewRegion, reviewRating, reviewContent);
+}
 
 function editReview(reviewId, region, rating, content) {
     // 파라미터로 직접 받은 데이터 사용 (HTML에서 전달)

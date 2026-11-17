@@ -21,6 +21,7 @@ KST = timezone(timedelta(hours=9))
 ARCHIVE = re.compile(r'safehome-\d{8}T\d{12}Z\.dump')
 JOBS = {
     'collect': ('03:10', '08:00', None),
+    'map-collect': ('05:30', '06:45', None),
     'backup': ('02:30', '04:30', None),
     'restore': ('09:30', '12:00', 6),
 }
@@ -235,7 +236,7 @@ def monitor(state_dir):
     old = json.loads(previous.read_text(encoding='utf-8')) if previous.exists() else {}
     if issues == old:
         return
-    notify('SafeHome: ' + (', '.join(f'{job} {issue}' for job, issue in issues.items()) or '수집·백업·복원 정상 복구'))
+    notify('SafeHome: ' + (', '.join(f'{job} {issue}' for job, issue in issues.items()) or '대시보드·지도 수집, 백업·복원 정상 복구'))
     pending = previous.with_suffix('.tmp')
     pending.write_text(json.dumps(issues), encoding='utf-8')
     pending.replace(previous)

@@ -417,7 +417,17 @@ def _index_jeonse_candidates(rents):
     return candidates
 
 
-def fetch_properties_by_region(region, db=None, RealTransaction=None):
+def property_search_months():
+    today = datetime.now(timezone(timedelta(hours=9))).date()
+    months = []
+    month_start = today.replace(day=1)
+    for _ in range(6):
+        months.append(month_start.strftime('%Y%m'))
+        month_start = (month_start - timedelta(days=1)).replace(day=1)
+    return months
+
+
+def fetch_properties_by_region(region, db=None, RealTransaction=None, *, months=None):
     """Compare recent sales with comparable pure-jeonse records."""
     if not region:
         return []
@@ -425,12 +435,8 @@ def fetch_properties_by_region(region, db=None, RealTransaction=None):
     if not lawd_cd:
         raise ValueError('지원하는 서울 자치구 또는 법정동을 입력하세요.')
     district = next(name for name, code in SEOUL_SIGUNGU_CODES.items() if code == lawd_cd)
-    today = datetime.now(timezone(timedelta(hours=9))).date()
-    months = []
-    month_start = today.replace(day=1)
-    for _ in range(6):
-        months.append(month_start.strftime('%Y%m'))
-        month_start = (month_start - timedelta(days=1)).replace(day=1)
+    if months is None:
+        months = property_search_months()
     with ThreadPoolExecutor(max_workers=6) as executor:
         jobs = {(kind, month): executor.submit(load_transaction_snapshot, kind, lawd_cd, month)
                 for kind in ('sale', 'rent') for month in months}

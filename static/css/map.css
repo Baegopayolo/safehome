@@ -81,6 +81,11 @@ body{margin:0;font-family:sans-serif}
     #search-container { position: absolute; top: 10px; width: calc(100% - 24px); }
     #address-search { width: auto; min-width: 0; flex: 1; }
     .map-title { width: calc(100% - 32px); box-sizing: border-box; }
+    #right-sidebar {
+        top: var(--map-header-height, 60px);
+        height: calc(100dvh - var(--map-header-height, 60px));
+        z-index: 1001;
+    }
 }
 .map-indicator-popup {
     --popup-accent: #475569;
@@ -211,3 +216,10 @@ body{margin:0;font-family:sans-serif}
 #map-results-favorite { border: 0; background: transparent; color: #854d0e; font-size: 21px; cursor: pointer; }
 #real-tx-results { margin-top: 10px; max-height: 300px; overflow: auto; font-size: 13px; }
 #map-results-all:not([hidden]) { display: inline-block; margin-top: 10px; font-weight: 600; }
+
+.map-sidebar-row { display: flex; align-items: center; gap: 8px; }
+.favorite-sidebar-item { padding: 10px; margin-bottom: 8px; border-radius: 6px; background: #f9fafb; }
+.map-sidebar-search, .map-sidebar-remove { border: 0; background: transparent; cursor: pointer; font: inherit; }
+.map-sidebar-search { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.map-sidebar-search span { display: block; }
+.map-sidebar-remove { padding: 4px 8px; color: #a61b31; }

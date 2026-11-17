@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 지역별 참고 전세가율</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='map-indicators-5') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='safe-result-rendering') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
@@ -55,8 +55,8 @@
                     <h3 id="map-results-title">실거래가 조회</h3>
                     <button id="map-results-favorite" type="button" hidden>☆</button>
                 </div>
-                <div id="real-tx-results" aria-live="polite">지역을 검색하면 매물이 표시됩니다.</div>
-                <a id="map-results-all" hidden>전체 매물 확인 →</a>
+                <div id="real-tx-results" aria-live="polite">지역을 검색하면 매매 실거래가 표시됩니다.</div>
+                <a id="map-results-all" hidden>전체 매매 실거래 확인 →</a>
             </section>
             <div class="sidebar-section">
                 <h3>⭐ 즐겨찾기</h3>
@@ -168,7 +168,7 @@
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='map-indicators-5') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='sale-contract-period') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

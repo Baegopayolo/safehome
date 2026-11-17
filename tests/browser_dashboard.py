@@ -130,15 +130,36 @@ try:
         page.keyboard.press('Escape')
         expect(gray_popup).to_have_count(0)
 
+        markup_text = "<img src=x onerror=window.renderedUnsafeMarkup=true>"
+
+        def search_history_response(route):
+            if route.request.method == 'GET':
+                route.fulfill(json=[{'id': 7, 'region': markup_text, 'search_date': '2026-11-10T12:00:00+09:00'}])
+            else:
+                route.fulfill(json={'status': 'success'})
+
+        saved_favorites = []
+
+        def favorites_response(route):
+            if route.request.method == 'GET':
+                route.fulfill(json=saved_favorites)
+            else:
+                assert route.request.method == 'POST'
+                saved_favorites.append({'id': 8, 'region': route.request.post_data_json['region']})
+                route.fulfill(json={'status': 'success'})
+
         def map_search_response(route):
             region, = parse_qs(urlsplit(route.request.url).query)['region']
             assert region in {'등촌동', '강남구 삼성동'}
-            route.fulfill(json={'properties': [{
-                'name': f'{region} 아파트', 'address': f'{region} 123', 'price': '8억',
+            route.fulfill(json={'period': {'from': '2026-06', 'to': '2026-11'}, 'properties': [{
+                'name': f'{region} 아파트 {markup_text}', 'address': f'{region} 123', 'price': '8억',
+                'deal_date': '2026-10-12',
                 'jeonse_price': '5.76억', 'jeonse_rate': 72, 'comparison_sample_count': 4,
             }]})
 
         page.route('**/analyze?*', map_search_response)
+        page.route('**/api/search-history', search_history_response)
+        page.route('**/api/favorites', favorites_response)
         page.route('**/api/real-transactions?*', lambda route: route.fulfill(json={'transactions': []}))
         page.evaluate("window.regionData['등촌동'].circle.click()")
         deungchon_popup = page.get_by_role('dialog', name='등촌동')
@@ -148,7 +169,19 @@ try:
         property_card = page.locator('#search-result .property-item')
         expect(property_card).to_contain_text('등촌동 아파트')
         expect(property_card).to_contain_text('72%')
+        expect(page.get_by_role('heading', name='등촌동 아파트 매매 실거래 1건')).to_be_visible()
+        expect(page.locator('#search-result')).to_contain_text('조회 기간 2026-06 ~ 2026-11')
+        expect(property_card).to_contain_text('계약일 2026-10-12')
+        expect(property_card).to_contain_text(markup_text)
+        expect(property_card.locator('img')).to_have_count(0)
         expect(property_card).to_be_in_viewport()
+        property_card.get_by_role('button', name='비교 추가').click()
+        expect(page.locator('#comparison-list')).to_contain_text(markup_text)
+        history = page.locator('#sidebar-recent-searches-list')
+        expect(history).to_contain_text(markup_text, use_inner_text=False)
+        expect(history.locator('img')).to_have_count(0)
+        expect(page.locator('footer')).not_to_contain_text('123-45-67890')
+        expect(page.locator('footer .newsletter-form')).to_have_count(0)
 
         page.goto(url + '/map', wait_until='domcontentloaded')
         expect(page.locator('#unknown-count')).to_have_text(str(count))
@@ -156,7 +189,15 @@ try:
         page.locator('#search-btn').click()
         expect(page.locator('#right-sidebar')).to_have_class('active')
         expect(page.locator('#real-tx-results')).to_contain_text('72%')
-        expect(page.get_by_role('button', name='즐겨찾기 추가')).to_be_visible()
+        expect(page.locator('#real-tx-results')).to_contain_text('계약일 2026-10-12')
+        expect(page.locator('#real-tx-results')).to_contain_text(markup_text)
+        expect(page.locator('#real-tx-results img')).to_have_count(0)
+        assert not page.evaluate('Boolean(window.renderedUnsafeMarkup)')
+        favorite = page.get_by_role('button', name='즐겨찾기 추가')
+        favorite.click()
+        expect(page.get_by_role('button', name='즐겨찾기 해제').first).to_be_visible()
+        assert saved_favorites == [{'id': 8, 'region': '강남구 삼성동'}]
+        expect(page.locator('#recent-searches')).to_contain_text(markup_text)
         expect(page.locator('.map-fixture-popup')).to_have_count(0)
         expect(page.locator('#unknown-count')).to_have_text(str(count))
         assert page.evaluate('window.__mapCircles.length') == count + 1
