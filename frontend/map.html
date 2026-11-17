@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>세이프홈 - 지역별 참고 전세가율</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='safe-result-rendering') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css', v='verified-legal-dongs') }}">
 </head>
 <body>
     {% include '_navbar.html' %}
@@ -157,6 +157,7 @@
                     </dl>
                     <p class="map-popup-note" data-field="note"></p>
                     <dl class="map-popup-meta">
+                        <div data-field="scope-row" hidden><dt>집계 법정동</dt><dd data-field="scope"></dd></div>
                         <div><dt>계약 기간</dt><dd data-field="period"></dd></div>
                         <div><dt>마지막 정상 갱신</dt><dd data-field="updated"></dd></div>
                     </dl>
@@ -168,7 +169,7 @@
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_app_key }}&libraries=services"></script>
     <script>const SAFEHOME_CONFIG={scannerUrl:"{{ url_for('searchscan_page') }}"};</script>
     <!-- 기존 map.js (필수 함수 포함) -->
-    <script src="{{ url_for('static', filename='js/map.js', v='sale-contract-period') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js', v='verified-legal-dongs') }}"></script>
     {% include '_footer.html' %}
 </body>
 </html>

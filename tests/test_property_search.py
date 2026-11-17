@@ -118,6 +118,25 @@ class PropertyTests(unittest.TestCase):
         self.assertIsNone(second['risk_score'])
         self.assertEqual(second['risk_level'], 'unknown')
 
+    def test_reference_ratio_bands_at_60_and_80_and_insufficient_samples(self):
+        today = utils.datetime.now().strftime('%Y-%m')
+        common = {'아파트': '테스트', '법정동': '역삼동', '건축년도': '2005', '지번': '123',
+                  '전용면적': '84', '층': '3', '거래일자': today + '-01', '거래금액원문': ''}
+        sales = [dict(common, 거래금액=p) for p in (100100, 100000, 75100, 75000)]
+        sales.append(dict(common, 거래금액=100000, 전용면적='89'))
+        rents = [dict(common, 월세금액=0, 전세금액=p) for p in (59000, 60000, 61000)]
+
+        def snapshot(kind, code, month):
+            return (sales if kind == 'sale' else rents) if month == today.replace('-', '') else []
+
+        with patch.object(utils, 'load_transaction_snapshot', side_effect=snapshot):
+            response = self.app.test_client().get('/api/analyze', query_string={'region': '역삼동'})
+        self.assertEqual(response.status_code, 200)
+        rows = response.json['properties']
+        self.assertEqual([(row['jeonse_rate'], row['risk_level']) for row in rows],
+                         [(59.94, 'low'), (60, 'medium'), (79.89, 'medium'), (80, 'high'), (None, 'unknown')])
+        self.assertEqual(rows[-1]['comparison_status'], 'insufficient')
+
     def test_cache_pagination_filters_before_slicing(self):
         client = self.app.test_client()
         rows = [{'아파트': name, '법정동': dong} for name, dong in
@@ -232,8 +251,9 @@ class PropertyTests(unittest.TestCase):
                                  ('11680', 5, 60))
                 self.assertEqual(gangnam['sale_transaction_count'], 5)
                 self.assertEqual(gangnam['period'], {'from': '2026-08-01', 'to': '2026-10-31'})
-                self.assertEqual((before['관악구 삼성동']['region_code'], before['관악구 삼성동']['reason']),
-                                 ('11620', 'unmapped'))
+                self.assertEqual((before['관악구 삼성동']['region_code'], before['관악구 삼성동']['dong'],
+                                  before['관악구 삼성동']['reason']), ('11620', '신림동', 'insufficient'))
+                self.assertEqual(before['서원동']['sale_sample_count'], before['신림동']['sale_sample_count'])
                 self.assertEqual((before['역삼동']['sale_sample_count'], before['역삼동']['reason']),
                                  (1, 'insufficient'))
                 self.assertEqual(before['역삼동']['sale_transaction_count'], 43)

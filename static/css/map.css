@@ -194,6 +194,7 @@ body{margin:0;font-family:sans-serif}
 .map-popup-note { color: #43536a; font-size: 12px; overflow-wrap: break-word; }
 .map-popup-meta { display: grid; gap: 2px; padding-top: 5px; border-top: 1px solid #e4eaf1; }
 .map-popup-meta dd { font-size: 11px; text-align: right; }
+.map-popup-meta > [hidden] { display: none; }
 
 .map-popup-search {
     width: 100%;

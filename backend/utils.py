@@ -324,8 +324,8 @@ def get_heatmap_data():
         # 관악구
         {'region': '신림동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'lat': 37.4842, 'lng': 126.9294},
         {'region': '봉천동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '봉천동', 'lat': 37.4833, 'lng': 126.9500},
-        {'region': '서원동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': None, 'lat': 37.4767, 'lng': 126.9333},
-        {'region': '관악구 삼성동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': None, 'lat': 37.4700, 'lng': 126.9300},
+        {'region': '서원동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'analysis_region': '관악구 신림동', 'lat': 37.4767, 'lng': 126.9333},
+        {'region': '관악구 삼성동', 'region_code': SEOUL_SIGUNGU_CODES['관악구'], 'dong': '신림동', 'analysis_region': '관악구 신림동', 'lat': 37.4700, 'lng': 126.9300},
         # 강동구
         {'region': '명일동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '명일동', 'lat': 37.5500, 'lng': 127.1436},
         {'region': '천호동', 'region_code': SEOUL_SIGUNGU_CODES['강동구'], 'dong': '천호동', 'lat': 37.5383, 'lng': 127.1233},
@@ -346,11 +346,11 @@ def get_heatmap_data():
         {'region': '한남동', 'region_code': SEOUL_SIGUNGU_CODES['용산구'], 'dong': '한남동', 'lat': 37.5333, 'lng': 127.0067},
         {'region': '이태원동', 'region_code': SEOUL_SIGUNGU_CODES['용산구'], 'dong': '이태원동', 'lat': 37.5342, 'lng': 126.9942},
         # 종로구
-        {'region': '종로동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': None, 'lat': 37.5700, 'lng': 126.9800},
+        {'region': '종로동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': '서린동', 'analysis_region': '종로구 서린동', 'lat': 37.5700, 'lng': 126.9800},
         {'region': '혜화동', 'region_code': SEOUL_SIGUNGU_CODES['종로구'], 'dong': '혜화동', 'lat': 37.5867, 'lng': 127.0000},
         # 중구
-        {'region': '명동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': None, 'lat': 37.5633, 'lng': 126.9833},
-        {'region': '을지로동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': None, 'lat': 37.5667, 'lng': 126.9900},
+        {'region': '명동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': '명동2가', 'analysis_region': '중구 명동2가', 'lat': 37.5633, 'lng': 126.9833},
+        {'region': '을지로동', 'region_code': SEOUL_SIGUNGU_CODES['중구'], 'dong': '을지로3가', 'analysis_region': '중구 을지로3가', 'lat': 37.5667, 'lng': 126.9900},
         # 노원구
         {'region': '상계동', 'region_code': SEOUL_SIGUNGU_CODES['노원구'], 'dong': '상계동', 'lat': 37.6633, 'lng': 127.0733},
         {'region': '하계동', 'region_code': SEOUL_SIGUNGU_CODES['노원구'], 'dong': '하계동', 'lat': 37.6367, 'lng': 127.0700},

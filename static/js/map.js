@@ -229,7 +229,7 @@ function selectMapRegion(region, position) {
     const hasSamples = Number.isInteger(data.sale_sample_count);
     content.dataset.category = data.indicator.category;
     field('region').textContent = region;
-    field('ratio').textContent = data.indicator.category === 'unknown' ? '—' : `${data.score.toFixed(1)}%`;
+    field('ratio').textContent = data.indicator.category === 'unknown' ? '—' : `${data.score.toFixed(2)}%`;
     field('status').textContent = data.indicator.text;
     field('samples').hidden = !hasSamples;
     field('total').textContent = Number.isInteger(data.sale_transaction_count)
@@ -241,6 +241,8 @@ function selectMapRegion(region, position) {
         : mapUnavailableReasons[data.reason] || '비교 가능한 매매를 기준으로 계산한 참고 지표입니다.';
     field('period').textContent = data.period
         ? `${data.period.from.replaceAll('-', '.')} – ${data.period.to.replaceAll('-', '.')}` : '—';
+    field('scope-row').hidden = !data.analysis_region;
+    field('scope').textContent = data.analysis_region || '';
     const updated = Date.parse(data.last_updated);
     field('updated').textContent = Number.isFinite(updated) ? `${mapUpdateFormat.format(updated)} KST` : '—';
     const close = content.querySelector('.map-popup-close');
@@ -251,7 +253,7 @@ function selectMapRegion(region, position) {
     content.addEventListener('keydown', event => {
         if (event.key === 'Escape') close.click();
     });
-    content.querySelector('.map-popup-search').href = propertyResultsUrl(region);
+    content.querySelector('.map-popup-search').href = propertyResultsUrl(data.analysis_region || region);
     regionPopup = new kakao.maps.CustomOverlay({ map, position, content, clickable: true, yAnchor: 1, zIndex: 10 });
     map.panBy(0, -126);
     close.focus({ preventScroll: true });
@@ -497,7 +499,8 @@ function searchAddress() {
     if (targetRegion) {
         globalMap.setCenter(targetRegion.circle.getPosition());
         globalMap.setLevel(5);
-        loadMapProperties(targetRegion.data.region, controller.signal);
+        const { analysis_region: analysisRegion, region } = targetRegion.data;
+        loadMapProperties(analysisRegion || region, controller.signal);
     } else {
         const geocoder = new kakao.maps.services.Geocoder();
         geocoder.addressSearch(searchKeyword, (result, status) => {
@@ -629,7 +632,7 @@ function updateRegionList() {
         label.className = 'region-status';
         label.style.color = region.indicator.color;
         label.textContent = region.indicator.category === 'unknown'
-            ? region.indicator.text : region.score.toFixed(1) + '% · ' + region.indicator.text;
+            ? region.indicator.text : region.score.toFixed(2) + '% · ' + region.indicator.text;
         item.append(name, label);
         item.onclick = () => selectMapRegion(region.region, regionData[region.region].circle.getPosition());
         list.append(item);
